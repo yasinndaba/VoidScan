@@ -8,6 +8,7 @@ from rich.prompt import Confirm, Prompt
 from voidscan.config import Config
 from voidscan.targets import TargetManager
 from voidscan.scanners.nmap import run_nmap
+from voidscan.scanners.discovery import discover_hosts
 
 
 console = Console()
@@ -349,6 +350,85 @@ def network_scan() -> None:
         )
 
     console.input("\nPress Enter to return to the menu...")
+    
+def live_host_discovery() -> None:
+    """Run an interactive live host discovery scan."""
+
+    show_banner()
+
+    console.print(
+        Panel(
+            "[bold cyan]Live Host Discovery[/bold cyan]\n\n"
+            "Discover hosts responding to ICMP ping within a network.\n"
+            "[dim]Enter the network using CIDR notation.[/dim]",
+            title="VoidScan",
+            border_style="cyan",
+        )
+    )
+
+    network = Prompt.ask(
+        "\n[bold cyan]Network[/bold cyan]",
+        default="192.168.1.0/24",
+    ).strip()
+
+    if not network:
+        return
+
+    show_banner()
+
+    console.print(
+        Panel(
+            f"[bold cyan]Network:[/bold cyan] {network}\n\n"
+            "[yellow]Starting host discovery...[/yellow]",
+            title="Live Host Discovery",
+            border_style="cyan",
+        )
+    )
+
+    try:
+        result = discover_hosts(network)
+
+    except ValueError as exc:
+        console.print(
+            Panel(
+                f"[bold red]{exc}[/bold red]",
+                title="Invalid Network",
+                border_style="red",
+            )
+        )
+        console.input("\nPress Enter to return to the menu...")
+        return
+
+    console.print()
+
+    if result.hosts:
+        table = Table(
+            title=f"Live Hosts — {result.network}",
+            border_style="green",
+        )
+
+        table.add_column("#", style="bold cyan", width=6)
+        table.add_column("Host", style="white")
+
+        for index, host in enumerate(result.hosts, start=1):
+            table.add_row(str(index), host)
+
+        console.print(table)
+    else:
+        console.print(
+            Panel(
+                "[yellow]No responding hosts were discovered.[/yellow]",
+                title="Discovery Results",
+                border_style="yellow",
+            )
+        )
+
+    console.print(
+        f"\n[bold cyan]Hosts scanned:[/bold cyan] {result.scanned}"
+        f"\n[bold green]Hosts discovered:[/bold green] {result.reachable}"
+    )
+
+    console.input("\nPress Enter to return to the menu...")
 
 def placeholder(module_name: str) -> None:
     """Display a placeholder for an unimplemented module."""
@@ -378,7 +458,7 @@ def run_menu() -> None:
             network_scan()
 
         elif choice == "2":
-            placeholder("Live Host Discovery")
+            live_host_discovery()
 
         elif choice == "3":
             placeholder("Subdomain Enumeration")
