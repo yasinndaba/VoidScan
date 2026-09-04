@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "voidscan"
+version = "0.1.0"
+description = "Authorized reconnaissance and security assessment toolkit"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [
+    { name = "Yasin Ndaba" }
+]
+
+[project.scripts]
+voidscan = "voidscan.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["voidscan*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

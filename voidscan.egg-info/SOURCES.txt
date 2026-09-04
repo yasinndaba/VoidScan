@@ -1,0 +1,11 @@
+LICENSE
+README.md
+pyproject.toml
+tests/test_cli.py
+voidscan/__init__.py
+voidscan/cli.py
+voidscan.egg-info/PKG-INFO
+voidscan.egg-info/SOURCES.txt
+voidscan.egg-info/dependency_links.txt
+voidscan.egg-info/entry_points.txt
+voidscan.egg-info/top_level.txt
