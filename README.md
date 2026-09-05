@@ -2,63 +2,126 @@
 
 VoidScan is a modular Python-based reconnaissance and security assessment toolkit designed for authorized security testing, cybersecurity laboratories, and defensive security research.
 
-The project is being developed as a portfolio project to demonstrate practical Python development, cybersecurity automation, reconnaissance, security tooling integration, testing, documentation, and secure software practices.
+The project is being developed as a cybersecurity portfolio project to demonstrate practical Python development, security automation, reconnaissance, security tooling integration, testing, documentation, and secure software development practices.
 
 ## Current Status
 
 Version: 0.1.0
 
-Milestone 0 — Project Foundation
+Milestone 0 — Project Foundation: Complete
 
-Current capabilities:
+Milestone 1 — Core Framework: Complete
 
-* Python package structure
-* Command-line entry point
-* Virtual environment
-* Basic automated testing
-* Git-based project management
+Milestone 2 — Nmap Engine: Complete
 
-Reconnaissance capabilities such as Nmap scanning, host discovery, subdomain enumeration, and web directory enumeration will be implemented in later milestones.
+Milestone 3 — Network Discovery: Complete
+
+Milestone 4 — Web Reconnaissance: Complete
+
+Milestone 5 — Reporting: In Progress
+
+Milestone 6 — Testing & Quality: In Progress
+
+## Current Capabilities
+
+### Core Framework
+
+- Target validation
+- Target management
+- Application configuration
+- Structured logging
+- Error handling
+- Scan profiles
+
+### Network Reconnaissance
+
+- Nmap network scanning
+- Quick, standard, and full scan profiles
+- Safe subprocess execution
+- Nmap timeout handling
+- Live host discovery
+- CIDR network validation
+
+### Web Reconnaissance
+
+- Subdomain enumeration
+- Subfinder integration
+- Amass integration
+- Directory enumeration
+- FFUF integration
+- DIRB integration
+- URL validation
+- Wordlist validation
+
+### IP Information
+
+- IPv4 and IPv6 information
+- Private address detection
+- Loopback detection
+- Reserved address detection
+- Multicast detection
+- Reverse DNS lookup
+- Hostname resolution
+
+### System Monitoring
+
+- Hostname information
+- Operating system information
+- Kernel information
+- CPU information
+- Memory usage
+- Disk usage
+- System uptime
+
+### Reporting
+
+- Standardized report structure
+- JSON report generation
+- Automatic report timestamps
+- Scanner result serialization
+- Nmap scan report generation
+- Report storage in `~/.voidscan/reports/`
 
 ## Architecture
 
-The planned architecture is:
+VoidScan separates scanning logic from presentation and reporting:
 
 Target → Validation → Scan Profile → Scanner → Structured Result → Report
 
-## Security Notice
+Scanner modules are responsible for executing security tools and returning structured results. Reporting is handled independently so the same scanner results can later be used for terminal, JSON, and HTML reports.
 
-VoidScan is intended only for systems, networks, applications, and infrastructure that you own or have explicit permission to assess.
+## Project Structure
 
-Do not use this project to scan or enumerate unauthorized systems.
-
-## Development
-
-Create and activate the virtual environment:
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-```
-
-Install the project:
-
-```bash
-pip install -e .
-```
-
-Run VoidScan:
-
-```bash
-voidscan
-```
-
-Run tests:
-
-```bash
-pytest
-```
-
-## Author
-
-Yasin Ndaba
+```text
+VoidScan/
+├── voidscan/
+│   ├── __init__.py
+│   ├── cli.py
+│   ├── menu.py
+│   ├── config.py
+│   ├── logger.py
+│   ├── targets.py
+│   ├── validators.py
+│   │
+│   ├── scanners/
+│   │   ├── __init__.py
+│   │   ├── nmap.py
+│   │   ├── discovery.py
+│   │   ├── subdomains.py
+│   │   ├── directories.py
+│   │   ├── ip_info.py
+│   │   └── system_monitor.py
+│   │
+│   └── reports/
+│       ├── __init__.py
+│       └── reporter.py
+│
+├── tests/
+├── docs/
+├── screenshots/
+├── .github/
+├── main.py
+├── pyproject.toml
+├── README.md
+├── CHANGELOG.md
+└── ROADMAP.md
