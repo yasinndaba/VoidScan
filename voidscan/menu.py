@@ -13,6 +13,7 @@ from voidscan.scanners.subdomains import enumerate_subdomains
 from voidscan.validators import is_valid_hostname
 from voidscan.scanners.directories import enumerate_directories
 from urllib.parse import urlparse
+from voidscan.scanners.ip_info import get_ip_info
 
 
 console = Console()
@@ -848,6 +849,121 @@ def directory_enumeration() -> None:
         )
 
     console.input("\nPress Enter to return to the menu...")
+    
+def ip_information() -> None:
+    """Display information about an IP address or hostname."""
+
+    config = Config()
+    config.create_directories()
+
+    manager = TargetManager(config.target_file)
+    targets = manager.list_targets()
+
+    show_banner()
+
+    if not targets:
+        console.print(
+            Panel(
+                "[bold yellow]No targets configured.[/bold yellow]\n\n"
+                "Use Target Manager to add an IP address or domain "
+                "before requesting IP information.",
+                title="IP Information",
+                border_style="yellow",
+            )
+        )
+
+        console.input("\nPress Enter to return to the menu...")
+        return
+
+    target_table = Table(
+        title="Select Target",
+        show_header=False,
+        border_style="cyan",
+    )
+
+    target_table.add_column("Option", style="bold cyan", width=8)
+    target_table.add_column("Target")
+
+    for index, target in enumerate(targets, start=1):
+        target_table.add_row(str(index), target)
+
+    console.print(target_table)
+
+    choices = [str(index) for index in range(1, len(targets) + 1)]
+    choices.append("0")
+
+    target_choice = Prompt.ask(
+        "\n[bold cyan]Select target (0 to cancel)[/bold cyan]",
+        choices=choices,
+    )
+
+    if target_choice == "0":
+        return
+
+    target = targets[int(target_choice) - 1]
+
+    show_banner()
+
+    console.print(
+        Panel(
+            f"[bold cyan]Target:[/bold cyan] {target}\n\n"
+            "[yellow]Gathering IP information...[/yellow]",
+            title="IP Information",
+            border_style="cyan",
+        )
+    )
+
+    try:
+        result = get_ip_info(target)
+
+    except ValueError as exc:
+        console.print(
+            Panel(
+                f"[bold red]{exc}[/bold red]",
+                title="IP Information Error",
+                border_style="red",
+            )
+        )
+
+        console.input("\nPress Enter to return to the menu...")
+        return
+
+    show_banner()
+
+    info_table = Table(
+        title=f"IP Information — {result.address}",
+        border_style="green",
+    )
+
+    info_table.add_column("Property", style="bold cyan")
+    info_table.add_column("Value", style="white")
+
+    info_table.add_row("IP Address", result.address)
+    info_table.add_row("Version", result.version)
+    info_table.add_row(
+        "Private",
+        "Yes" if result.is_private else "No",
+    )
+    info_table.add_row(
+        "Loopback",
+        "Yes" if result.is_loopback else "No",
+    )
+    info_table.add_row(
+        "Reserved",
+        "Yes" if result.is_reserved else "No",
+    )
+    info_table.add_row(
+        "Multicast",
+        "Yes" if result.is_multicast else "No",
+    )
+    info_table.add_row(
+        "Reverse DNS",
+        result.reverse_dns or "Not available",
+    )
+
+    console.print(info_table)
+
+    console.input("\nPress Enter to return to the menu...")
 
 def placeholder(module_name: str) -> None:
     """Display a placeholder for an unimplemented module."""
@@ -886,7 +1002,7 @@ def run_menu() -> None:
             directory_enumeration()
 
         elif choice == "5":
-            placeholder("IP Information")
+            ip_information()
 
         elif choice == "6":
             placeholder("System Monitor")
