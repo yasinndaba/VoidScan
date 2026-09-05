@@ -14,6 +14,8 @@ from voidscan.validators import is_valid_hostname
 from voidscan.scanners.directories import enumerate_directories
 from urllib.parse import urlparse
 from voidscan.scanners.ip_info import get_ip_info
+from voidscan.scanners.system_monitor import get_system_monitor
+
 
 
 console = Console()
@@ -964,6 +966,49 @@ def ip_information() -> None:
     console.print(info_table)
 
     console.input("\nPress Enter to return to the menu...")
+    
+def system_monitor() -> None:
+    """Display local system information."""
+    console.print(
+        Panel(
+            "[bold cyan]System Monitor[/bold cyan]\n"
+            "Local system information",
+            expand=False,
+        )
+    )
+
+    try:
+        result = get_system_monitor()
+    except RuntimeError as exc:
+        console.print(f"[red]System monitor failed:[/red] {exc}")
+        return
+
+    uptime = int(result.uptime_seconds)
+    days, remainder = divmod(uptime, 86400)
+    hours, remainder = divmod(remainder, 3600)
+    minutes, _ = divmod(remainder, 60)
+
+    uptime_display = f"{days}d {hours}h {minutes}m"
+
+    table = Table(title="System Information")
+    table.add_column("Property", style="cyan")
+    table.add_column("Value", style="white")
+
+    table.add_row("Hostname", result.hostname)
+    table.add_row("Operating System", result.operating_system)
+    table.add_row("Kernel", result.kernel)
+    table.add_row("Architecture", result.architecture)
+    table.add_row("CPU Cores", str(result.cpu_count))
+    table.add_row("Memory Total", f"{result.memory_total_gb:.2f} GB")
+    table.add_row("Memory Available", f"{result.memory_available_gb:.2f} GB")
+    table.add_row("Disk Total", f"{result.disk_total_gb:.2f} GB")
+    table.add_row("Disk Free", f"{result.disk_free_gb:.2f} GB")
+    table.add_row("Uptime", uptime_display)
+
+    console.print(table)
+
+    console.input("\nPress Enter to return to the menu...")
+
 
 def placeholder(module_name: str) -> None:
     """Display a placeholder for an unimplemented module."""
@@ -1005,7 +1050,7 @@ def run_menu() -> None:
             ip_information()
 
         elif choice == "6":
-            placeholder("System Monitor")
+            system_monitor()
 
         elif choice == "7":
             target_manager()
