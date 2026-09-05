@@ -15,6 +15,7 @@ from voidscan.scanners.directories import enumerate_directories
 from urllib.parse import urlparse
 from voidscan.scanners.ip_info import get_ip_info
 from voidscan.scanners.system_monitor import get_system_monitor
+from voidscan.reporter import save_scan_report
 
 
 
@@ -324,7 +325,6 @@ def network_scan() -> None:
             border_style="cyan",
         )
     )
-
     try:
         result = run_nmap(target, profile)
 
@@ -338,6 +338,29 @@ def network_scan() -> None:
                     border_style="green",
                 )
             )
+
+            if Confirm.ask("Save scan results as JSON report?"):
+                try:
+                    report_path = save_scan_report(
+                        scan_type="Network Scan",
+                        target=target,
+                        result=result,
+                        output_directory=config.report_dir,
+                    )
+
+                    console.print(
+                        f"\n[green]Report saved:[/green] {report_path}"
+                    )
+
+                except (OSError, TypeError) as exc:
+                    console.print(
+                        Panel(
+                            f"[bold red]{exc}[/bold red]",
+                            title="Report Error",
+                            border_style="red",
+                        )
+                    )
+
         else:
             console.print(
                 Panel(
@@ -357,6 +380,7 @@ def network_scan() -> None:
         )
 
     console.input("\nPress Enter to return to the menu...")
+    
     
 def live_host_discovery() -> None:
     """Run an interactive live host discovery scan."""
