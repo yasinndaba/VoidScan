@@ -11,6 +11,8 @@ from voidscan.scanners.nmap import run_nmap
 from voidscan.scanners.discovery import discover_hosts
 from voidscan.scanners.subdomains import enumerate_subdomains
 from voidscan.validators import is_valid_hostname
+from voidscan.scanners.directories import enumerate_directories
+from urllib.parse import urlparse
 
 
 console = Console()
@@ -616,6 +618,236 @@ def subdomain_enumeration() -> None:
     )
 
     console.input("\nPress Enter to return to the menu...")
+    
+def directory_enumeration() -> None:
+    """Run an interactive directory enumeration."""
+
+    config = Config()
+    config.create_directories()
+
+    manager = TargetManager(config.target_file)
+    targets = manager.list_targets()
+
+    show_banner()
+
+    if not targets:
+        console.print(
+            Panel(
+                "[bold yellow]No targets configured.[/bold yellow]\n\n"
+                "Use Target Manager to add a target before "
+                "starting directory enumeration.",
+                title="Directory Enumeration",
+                border_style="yellow",
+            )
+        )
+
+        console.input("\nPress Enter to return to the menu...")
+        return
+
+    target_table = Table(
+        title="Select Web Target",
+        show_header=False,
+        border_style="cyan",
+    )
+
+    target_table.add_column("Option", style="bold cyan", width=8)
+    target_table.add_column("Target")
+
+    for index, target in enumerate(targets, start=1):
+        target_table.add_row(str(index), target)
+
+    console.print(target_table)
+
+    choices = [str(index) for index in range(1, len(targets) + 1)]
+    choices.append("0")
+
+    target_choice = Prompt.ask(
+        "\n[bold cyan]Select target (0 to cancel)[/bold cyan]",
+        choices=choices,
+    )
+
+    if target_choice == "0":
+        return
+
+    target = targets[int(target_choice) - 1]
+
+    parsed = urlparse(target)
+
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        console.print(
+            Panel(
+                "[bold red]The selected target is not a valid web URL.[/bold red]\n\n"
+                "Directory enumeration requires a URL such as:\n"
+                "https://example.com",
+                title="Invalid Target",
+                border_style="red",
+            )
+        )
+
+        console.input("\nPress Enter to return to the menu...")
+        return
+
+    show_banner()
+
+    engine_table = Table(
+        title=f"Enumeration Engine — {target}",
+        show_header=False,
+        border_style="cyan",
+    )
+
+    engine_table.add_column("Option", style="bold cyan", width=8)
+    engine_table.add_column("Engine")
+    engine_table.add_column("Description")
+
+    engine_table.add_row(
+        "1",
+        "FFUF",
+        "Fast web fuzzing and directory discovery",
+    )
+
+    engine_table.add_row(
+        "2",
+        "DIRB",
+        "Classic web content scanner",
+    )
+
+    engine_table.add_row(
+        "0",
+        "Back",
+        "Return without scanning",
+    )
+
+    console.print(engine_table)
+
+    engine_choice = Prompt.ask(
+        "\n[bold cyan]Select enumeration engine[/bold cyan]",
+        choices=["1", "2", "0"],
+    )
+
+    engines = {
+        "1": "ffuf",
+        "2": "dirb",
+    }
+
+    if engine_choice == "0":
+        return
+
+    engine = engines[engine_choice]
+
+    show_banner()
+
+    wordlist_choice = Prompt.ask(
+        "\n[bold cyan]Wordlist[/bold cyan]\n"
+        "1. Default common.txt\n"
+        "2. Custom wordlist\n"
+        "0. Cancel\n\n"
+        "Select wordlist",
+        choices=["1", "2", "0"],
+    )
+
+    if wordlist_choice == "0":
+        return
+
+    if wordlist_choice == "1":
+        wordlist = None
+    else:
+        wordlist = Prompt.ask(
+            "\n[bold cyan]Enter wordlist path[/bold cyan]"
+        ).strip()
+
+        if not wordlist:
+            return
+
+    show_banner()
+
+    selected_wordlist = (
+        "Default common.txt"
+        if wordlist is None
+        else wordlist
+    )
+
+    console.print(
+        Panel(
+            f"[bold cyan]Target:[/bold cyan] {target}\n"
+            f"[bold cyan]Engine:[/bold cyan] {engine.upper()}\n"
+            f"[bold cyan]Wordlist:[/bold cyan] {selected_wordlist}\n\n"
+            "[yellow]Starting directory enumeration...[/yellow]",
+            title="Directory Enumeration",
+            border_style="cyan",
+        )
+    )
+
+    try:
+        if wordlist is None:
+            result = enumerate_directories(
+                target,
+                engine,
+            )
+        else:
+            result = enumerate_directories(
+                target,
+                engine,
+                wordlist,
+            )
+
+    except (RuntimeError, ValueError) as exc:
+        console.print(
+            Panel(
+                f"[bold red]{exc}[/bold red]",
+                title="Enumeration Error",
+                border_style="red",
+            )
+        )
+
+        console.input("\nPress Enter to return to the menu...")
+        return
+
+    console.print()
+
+    if result.success and result.results:
+        result_table = Table(
+            title=f"Discovered Content — {target}",
+            border_style="green",
+        )
+
+        result_table.add_column("#", style="bold cyan", width=6)
+        result_table.add_column("Result", style="white")
+
+        for index, item in enumerate(
+            result.results,
+            start=1,
+        ):
+            result_table.add_row(str(index), item)
+
+        console.print(result_table)
+
+        console.print(
+            f"\n[bold green]Results discovered:[/bold green] "
+            f"{len(result.results)}"
+        )
+
+    elif result.success:
+        console.print(
+            Panel(
+                "[yellow]No directories or files were discovered.[/yellow]",
+                title="Enumeration Results",
+                border_style="yellow",
+            )
+        )
+
+    else:
+        console.print(
+            Panel(
+                "The enumeration engine reported a failure.",
+                title=(
+                    f"Enumeration Failed — Exit Code "
+                    f"{result.return_code}"
+                ),
+                border_style="red",
+            )
+        )
+
+    console.input("\nPress Enter to return to the menu...")
 
 def placeholder(module_name: str) -> None:
     """Display a placeholder for an unimplemented module."""
@@ -651,7 +883,7 @@ def run_menu() -> None:
            subdomain_enumeration()
 
         elif choice == "4":
-            placeholder("Directory Enumeration")
+            directory_enumeration()
 
         elif choice == "5":
             placeholder("IP Information")
