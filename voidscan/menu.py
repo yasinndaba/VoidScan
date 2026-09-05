@@ -9,6 +9,8 @@ from voidscan.config import Config
 from voidscan.targets import TargetManager
 from voidscan.scanners.nmap import run_nmap
 from voidscan.scanners.discovery import discover_hosts
+from voidscan.scanners.subdomains import enumerate_subdomains
+from voidscan.validators import is_valid_hostname
 
 
 console = Console()
@@ -429,6 +431,191 @@ def live_host_discovery() -> None:
     )
 
     console.input("\nPress Enter to return to the menu...")
+    
+def subdomain_enumeration() -> None:
+    """Run an interactive subdomain enumeration."""
+
+    config = Config()
+    config.create_directories()
+
+    manager = TargetManager(config.target_file)
+    targets = manager.list_targets()
+
+    show_banner()
+
+    if not targets:
+        console.print(
+            Panel(
+                "[bold yellow]No targets configured.[/bold yellow]\n\n"
+                "Use Target Manager to add a domain before "
+                "starting subdomain enumeration.",
+                title="Subdomain Enumeration",
+                border_style="yellow",
+            )
+        )
+
+        console.input("\nPress Enter to return to the menu...")
+        return
+
+    target_table = Table(
+        title="Select Domain",
+        show_header=False,
+        border_style="cyan",
+    )
+
+    target_table.add_column("Option", style="bold cyan", width=8)
+    target_table.add_column("Target")
+
+    for index, target in enumerate(targets, start=1):
+        target_table.add_row(str(index), target)
+
+    console.print(target_table)
+
+    choices = [str(index) for index in range(1, len(targets) + 1)]
+    choices.append("0")
+
+    target_choice = Prompt.ask(
+        "\n[bold cyan]Select domain (0 to cancel)[/bold cyan]",
+        choices=choices,
+    )
+
+    if target_choice == "0":
+        return
+
+    domain = targets[int(target_choice) - 1]
+
+    if not is_valid_hostname(domain):
+        console.print(
+            Panel(
+                "[bold red]The selected target is not a valid domain.[/bold red]\n\n"
+                "Subdomain enumeration requires a domain such as "
+                "example.com.",
+                title="Invalid Target",
+                border_style="red",
+            )
+        )
+
+        console.input("\nPress Enter to return to the menu...")
+        return
+
+    show_banner()
+
+    engine_table = Table(
+        title=f"Enumeration Engine — {domain}",
+        show_header=False,
+        border_style="cyan",
+    )
+
+    engine_table.add_column("Option", style="bold cyan", width=8)
+    engine_table.add_column("Engine")
+    engine_table.add_column("Description")
+
+    engine_table.add_row(
+        "1",
+        "Subfinder",
+        "Fast passive subdomain discovery",
+    )
+
+    engine_table.add_row(
+        "2",
+        "Amass",
+        "Passive subdomain discovery and reconnaissance",
+    )
+
+    engine_table.add_row(
+        "0",
+        "Back",
+        "Return without scanning",
+    )
+
+    console.print(engine_table)
+
+    engine_choice = Prompt.ask(
+        "\n[bold cyan]Select enumeration engine[/bold cyan]",
+        choices=["1", "2", "0"],
+    )
+
+    engines = {
+        "1": "subfinder",
+        "2": "amass",
+    }
+
+    if engine_choice == "0":
+        return
+
+    engine = engines[engine_choice]
+
+    show_banner()
+
+    console.print(
+        Panel(
+            f"[bold cyan]Domain:[/bold cyan] {domain}\n"
+            f"[bold cyan]Engine:[/bold cyan] {engine.title()}\n\n"
+            "[yellow]Starting subdomain enumeration...[/yellow]",
+            title="Subdomain Enumeration",
+            border_style="cyan",
+        )
+    )
+
+    try:
+        result = enumerate_subdomains(domain, engine)
+
+    except (RuntimeError, ValueError) as exc:
+        console.print(
+            Panel(
+                f"[bold red]{exc}[/bold red]",
+                title="Enumeration Error",
+                border_style="red",
+            )
+        )
+
+        console.input("\nPress Enter to return to the menu...")
+        return
+
+    console.print()
+
+    if result.success and result.subdomains:
+        result_table = Table(
+            title=f"Discovered Subdomains — {domain}",
+            border_style="green",
+        )
+
+        result_table.add_column("#", style="bold cyan", width=6)
+        result_table.add_column("Subdomain", style="white")
+
+        for index, subdomain in enumerate(
+            result.subdomains,
+            start=1,
+        ):
+            result_table.add_row(str(index), subdomain)
+
+        console.print(result_table)
+
+        console.print(
+            f"\n[bold green]Subdomains discovered:[/bold green] "
+            f"{len(result.subdomains)}"
+        )
+
+    elif result.success:
+        console.print(
+            Panel(
+                "[yellow]No subdomains were discovered.[/yellow]",
+                title="Enumeration Results",
+                border_style="yellow",
+            )
+        )
+
+    else:
+        console.print(
+            Panel(
+                "The enumeration engine reported a failure.",
+                title=f"Enumeration Failed — Exit Code "
+                f"{result.return_code}",
+                border_style="red",
+        )
+    )
+
+    console.input("\nPress Enter to return to the menu...")
 
 def placeholder(module_name: str) -> None:
     """Display a placeholder for an unimplemented module."""
@@ -461,7 +648,7 @@ def run_menu() -> None:
             live_host_discovery()
 
         elif choice == "3":
-            placeholder("Subdomain Enumeration")
+           subdomain_enumeration()
 
         elif choice == "4":
             placeholder("Directory Enumeration")
