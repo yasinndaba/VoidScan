@@ -25,16 +25,16 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> None:
-    """Run the VoidScan command-line interface."""
-
     parser = build_parser()
-
     if argv is None:
         argv = sys.argv[1:]
 
     parser.parse_args(argv)
 
-    run_menu()
+    try:
+        run_menu()
+    except KeyboardInterrupt:
+        print("\n\nVoidScan Session Ended.")
 
 
 if __name__ == "__main__":
