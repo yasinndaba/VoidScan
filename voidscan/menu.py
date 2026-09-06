@@ -15,7 +15,8 @@ from voidscan.scanners.directories import enumerate_directories
 from urllib.parse import urlparse
 from voidscan.scanners.ip_info import get_ip_info
 from voidscan.scanners.system_monitor import get_system_monitor
-from voidscan.reporter import save_scan_report
+from voidscan.reporter import create_report, save_scan_report
+from voidscan.html_reporter import save_html_report
 
 
 
@@ -340,6 +341,7 @@ def network_scan() -> None:
             )
 
             if Confirm.ask("Save scan results as JSON report?"):
+                
                 try:
                     report_path = save_scan_report(
                         scan_type="Network Scan",
@@ -358,8 +360,34 @@ def network_scan() -> None:
                             f"[bold red]{exc}[/bold red]",
                             title="Report Error",
                             border_style="red",
-                        )
+            )
+        )
+            if Confirm.ask("Save scan results as HTML report?"):
+                        
+                try:
+                    report = create_report(
+                        scan_type="Network Scan",
+                        target=target,
+                        result=result,
                     )
+
+                    html_path = save_html_report(
+                        report=report,
+                        output_directory=config.report_dir,
+                    )
+
+                    console.print(
+                        f"\n[green]HTML report saved:[/green] {html_path}"
+                    )
+
+                except (OSError, TypeError) as exc:
+                    console.print(
+                        Panel(
+                            f"[bold red]{exc}[/bold red]",
+                            title="HTML Report Error",
+                            border_style="red",
+            )
+        )
 
         else:
             console.print(
