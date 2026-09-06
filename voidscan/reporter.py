@@ -5,6 +5,8 @@ from dataclasses import asdict, is_dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, cast
+from rich.console import Console
+from rich.table import Table
 
 
 def create_report(
@@ -72,3 +74,38 @@ def save_scan_report(
         report=report,
         output_directory=output_directory,
     )
+
+def display_report_summary(report: dict[str, Any]) -> None:
+    """Display a concise report summary in the terminal."""
+
+    console = Console()
+
+    table = Table(title="VoidScan Scan Summary")
+
+    table.add_column("Property", style="cyan")
+    table.add_column("Value")
+
+    table.add_row("Scan Type", str(report["scan_type"]))
+    table.add_row("Target", str(report["target"]))
+    table.add_row("Timestamp", str(report["timestamp"]))
+
+    result = report["result"]
+
+    if isinstance(result, dict):
+        success = result.get("success")
+
+        if success is not None:
+            status = (
+                "[green]Success[/green]"
+                if success
+                else "[red]Failed[/red]"
+            )
+            table.add_row("Status", status)
+
+        if "return_code" in result:
+            table.add_row(
+                "Return Code",
+                str(result["return_code"]),
+            )
+
+    console.print(table)

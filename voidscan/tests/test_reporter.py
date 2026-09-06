@@ -6,6 +6,8 @@ from pathlib import Path
 import pytest
 
 from voidscan.reporter import create_report, save_json_report
+from unittest.mock import patch
+from voidscan.reporter import display_report_summary
 
 
 @dataclass
@@ -90,3 +92,23 @@ def test_save_json_report(tmp_path: Path):
     assert '"scan_type": "Network Scan"' in content
     assert '"target": "192.168.1.10"' in content
     assert '"success": true' in content
+    
+def test_display_report_summary():
+    report = {
+        "tool": "VoidScan",
+        "version": "0.1.0",
+        "scan_type": "Network Scan",
+        "target": "127.0.0.1",
+        "timestamp": "2026-09-05T12:00:00+00:00",
+        "result": {
+            "success": True,
+            "return_code": 0,
+        },
+    }
+
+    with patch(
+        "voidscan.reports.reporter.Console"
+    ) as mock_console:
+        display_report_summary(report)
+
+    mock_console.return_value.print.assert_called_once()
