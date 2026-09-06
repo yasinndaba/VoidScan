@@ -1002,6 +1002,55 @@ def directory_enumeration() -> None:
             )
         )
 
+    if result.success:
+        if Confirm.ask("Save enumeration results as JSON report?"):
+            try:
+                report_path = save_scan_report(
+                    scan_type="Directory Enumeration",
+                    target=target,
+                    result=result,
+                    output_directory=config.report_dir,
+                )
+
+                console.print(
+                    f"\n[green]JSON report saved:[/green] {report_path}"
+                )
+
+            except (OSError, TypeError) as exc:
+                console.print(
+                    Panel(
+                        f"[bold red]{exc}[/bold red]",
+                        title="Report Error",
+                        border_style="red",
+                    )
+                )
+
+        if Confirm.ask("Save enumeration results as HTML report?"):
+            try:
+                report = create_report(
+                    scan_type="Directory Enumeration",
+                    target=target,
+                    result=result,
+                )
+
+                html_path = save_html_report(
+                    report=report,
+                    output_directory=config.report_dir,
+                )
+
+                console.print(
+                    f"\n[green]HTML report saved:[/green] {html_path}"
+                )
+
+            except (OSError, TypeError) as exc:
+                console.print(
+                    Panel(
+                        f"[bold red]{exc}[/bold red]",
+                        title="HTML Report Error",
+                        border_style="red",
+                    )
+                )
+
     console.input("\nPress Enter to return to the menu...")
     
 def ip_information() -> None:
