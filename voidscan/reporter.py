@@ -75,37 +75,84 @@ def save_scan_report(
         output_directory=output_directory,
     )
 
+def build_report_summary(
+    report: dict[str, Any],
+) -> dict[str, Any]:
+    """Build a concise summary from a VoidScan report."""
+
+    result = report.get("result", {})
+
+    summary: dict[str, Any] = {
+        "scan_type": report.get("scan_type", "Unknown"),
+        "target": report.get("target", "Unknown"),
+        "timestamp": report.get("timestamp", "Unknown"),
+    }
+
+    if not isinstance(result, dict):
+        return summary
+
+    if "success" in result:
+        summary["success"] = result["success"]
+
+    if "return_code" in result:
+        summary["return_code"] = result["return_code"]
+
+    if "hosts" in result:
+        summary["hosts_found"] = len(result["hosts"])
+
+    if "subdomains" in result:
+        summary["subdomains_found"] = len(result["subdomains"])
+
+    if "results" in result:
+        summary["results_found"] = len(result["results"])
+
+    return summary
+
 def display_report_summary(report: dict[str, Any]) -> None:
     """Display a concise report summary in the terminal."""
 
     console = Console()
+    summary = build_report_summary(report)
 
     table = Table(title="VoidScan Scan Summary")
 
     table.add_column("Property", style="cyan")
     table.add_column("Value")
 
-    table.add_row("Scan Type", str(report["scan_type"]))
-    table.add_row("Target", str(report["target"]))
-    table.add_row("Timestamp", str(report["timestamp"]))
+    table.add_row("Scan Type", str(summary["scan_type"]))
+    table.add_row("Target", str(summary["target"]))
+    table.add_row("Timestamp", str(summary["timestamp"]))
 
-    result = report["result"]
+    if "success" in summary:
+        status = (
+            "[green]Success[/green]"
+            if summary["success"]
+            else "[red]Failed[/red]"
+        )
+        table.add_row("Status", status)
 
-    if isinstance(result, dict):
-        success = result.get("success")
+    if "return_code" in summary:
+        table.add_row(
+            "Return Code",
+            str(summary["return_code"]),
+        )
 
-        if success is not None:
-            status = (
-                "[green]Success[/green]"
-                if success
-                else "[red]Failed[/red]"
-            )
-            table.add_row("Status", status)
+    if "hosts_found" in summary:
+        table.add_row(
+            "Hosts Found",
+            str(summary["hosts_found"]),
+        )
 
-        if "return_code" in result:
-            table.add_row(
-                "Return Code",
-                str(result["return_code"]),
-            )
+    if "subdomains_found" in summary:
+        table.add_row(
+            "Subdomains Found",
+            str(summary["subdomains_found"]),
+        )
+
+    if "results_found" in summary:
+        table.add_row(
+            "Results Found",
+            str(summary["results_found"]),
+        )
 
     console.print(table)

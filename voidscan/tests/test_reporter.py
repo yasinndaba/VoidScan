@@ -5,9 +5,14 @@ from pathlib import Path
 
 import pytest
 
-from voidscan.reporter import create_report, save_json_report
 from unittest.mock import patch
-from voidscan.reporter import display_report_summary
+
+from voidscan.reporter import (
+    build_report_summary,
+    create_report,
+    display_report_summary,
+    save_json_report,
+)
 
 
 @dataclass
@@ -107,8 +112,79 @@ def test_display_report_summary():
     }
 
     with patch(
-        "voidscan.reports.reporter.Console"
+        "voidscan.reporter.Console"
     ) as mock_console:
         display_report_summary(report)
 
     mock_console.return_value.print.assert_called_once()
+    
+def test_build_report_summary():
+    report = {
+        "tool": "VoidScan",
+        "version": "0.1.0",
+        "scan_type": "Network Discovery",
+        "target": "192.168.1.0/24",
+        "timestamp": "2026-09-06T10:00:00+00:00",
+        "result": {
+            "success": True,
+            "return_code": 0,
+            "hosts": [
+                "192.168.1.1",
+                "192.168.1.10",
+                "192.168.1.20",
+            ],
+        },
+    }
+
+    summary = build_report_summary(report)
+
+    assert summary["scan_type"] == "Network Discovery"
+    assert summary["target"] == "192.168.1.0/24"
+    assert summary["success"] is True
+    assert summary["return_code"] == 0
+    assert summary["hosts_found"] == 3
+    
+def test_build_report_summary_with_subdomains():
+    report = {
+        "scan_type": "Subdomain Enumeration",
+        "target": "example.com",
+        "timestamp": "2026-09-06T10:00:00+00:00",
+        "result": {
+            "success": True,
+            "return_code": 0,
+            "subdomains": [
+                "api.example.com",
+                "mail.example.com",
+                "www.example.com",
+            ],
+        },
+    }
+
+    summary = build_report_summary(report)
+
+    assert summary["subdomains_found"] == 3
+    assert summary["success"] is True
+    assert summary["return_code"] == 0
+
+
+def test_build_report_summary_with_directories():
+    report = {
+        "scan_type": "Directory Enumeration",
+        "target": "http://example.com",
+        "timestamp": "2026-09-06T10:00:00+00:00",
+        "result": {
+            "success": True,
+            "return_code": 0,
+            "results": [
+                "/admin",
+                "/login",
+                "/uploads",
+            ],
+        },
+    }
+
+    summary = build_report_summary(report)
+
+    assert summary["results_found"] == 3
+    assert summary["success"] is True
+    assert summary["return_code"] == 0
