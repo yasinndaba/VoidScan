@@ -7,6 +7,7 @@ from voidscan.scanners.directories import (
     DEFAULT_WORDLIST,
     enumerate_directories,
     parse_dirb_results,
+    parse_ffuf_results,
     run_dirb,
     run_ffuf,
     tool_installed,
@@ -83,6 +84,7 @@ def test_run_ffuf(mock_run, tmp_path):
     assert "-u" in command
     assert "http://127.0.0.1/FUZZ" in command
     assert "-w" in command
+    assert "-json" in command
     assert str(wordlist) in command
     assert mock_run.call_args.kwargs["timeout"] == 45
 
@@ -303,4 +305,31 @@ def test_run_ffuf_accepts_full_urls(mock_run, tmp_path):
     assert result.results == [
         "http://127.0.0.1/admin",
         "http://127.0.0.1/login",
+    ]
+
+
+def test_parse_ffuf_results_parses_json_lines():
+    output = (
+        '{"url": "http://example.com/admin", "status": 200}\n'
+        '{"url": "http://example.com/login", "status": 301}\n'
+    )
+
+    assert parse_ffuf_results(output, "http://example.com/FUZZ") == [
+        "http://example.com/admin",
+        "http://example.com/login",
+    ]
+
+
+def test_parse_ffuf_results_ignores_json_without_url():
+    output = '{"status": 200}\n{"input": "admin"}\n'
+
+    assert parse_ffuf_results(output, "http://example.com/FUZZ") == []
+
+
+def test_parse_ffuf_results_falls_back_to_text():
+    output = "admin\nhttp://example.com/login\n"
+
+    assert parse_ffuf_results(output, "http://example.com/FUZZ") == [
+        "http://example.com/admin",
+        "http://example.com/login",
     ]

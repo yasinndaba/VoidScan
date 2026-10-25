@@ -4,8 +4,9 @@ import logging
 import os
 import shutil
 import threading
+import xml.etree.ElementTree as ET
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from voidscan.errors import ScanTimeout
 from voidscan.process import run_command
@@ -30,6 +31,17 @@ NON_ROOT_SCAN_PROFILES = {
 }
 
 
+@dataclass(frozen=True)
+class NmapPort:
+    """Represent one port reported by Nmap's structured output."""
+
+    port: int
+    protocol: str
+    state: str
+    service: str
+    version: str = ""
+
+
 @dataclass
 class NmapResult:
     """Represent the result of an Nmap scan."""
@@ -39,6 +51,7 @@ class NmapResult:
     output: str
     return_code: int
     success: bool
+    ports: list[NmapPort] = field(default_factory=list)
 
 
 def nmap_installed() -> bool:
@@ -63,7 +76,76 @@ def build_nmap_command(target: str, profile: str) -> list[str]:
         SCAN_PROFILES if has_root_privileges() else NON_ROOT_SCAN_PROFILES
     )
 
-    return ["nmap", *profiles[profile], target]
+    return ["nmap", *profiles[profile], "-oX", "-", target]
+
+
+def parse_nmap_xml(output: str) -> list[NmapPort] | None:
+    """Parse Nmap XML output into port records.
+
+    Returns ``None`` when the output is not valid XML so callers can fall
+    back to the text parser.
+    """
+
+    try:
+        root = ET.fromstring(output)
+    except ET.ParseError:
+        return None
+
+    ports: list[NmapPort] = []
+
+    for element in root.iter("port"):
+        try:
+            port = int(element.get("portid", ""))
+        except ValueError:
+            continue
+
+        state_element = element.find("state")
+        service_element = element.find("service")
+
+        state = "unknown"
+        if state_element is not None:
+            state = state_element.get("state", state)
+
+        service = "unknown"
+        version_parts: list[str] = []
+
+        if service_element is not None:
+            service = service_element.get("name") or service
+
+            for key in ("product", "version", "extrainfo"):
+                value = service_element.get(key)
+                if value:
+                    version_parts.append(value)
+
+        ports.append(
+            NmapPort(
+                port=port,
+                protocol=element.get("protocol", "tcp"),
+                state=state,
+                service=service,
+                version=" ".join(version_parts),
+            )
+        )
+
+    return ports
+
+
+def format_nmap_ports(target: str, ports: list[NmapPort]) -> str:
+    """Render parsed ports as the familiar Nmap text summary."""
+
+    lines = [f"Nmap scan report for {target}"]
+
+    if not ports:
+        lines.append("No open ports found.")
+        return "\n".join(lines)
+
+    for entry in ports:
+        line = f"{entry.port}/{entry.protocol} {entry.state} {entry.service}"
+        if entry.version:
+            line += f" {entry.version}"
+        lines.append(line)
+
+    return "\n".join(lines)
 
 
 def run_nmap(
@@ -105,7 +187,12 @@ def run_nmap(
         logger.error("Failed to execute Nmap: %s", exc)
         raise RuntimeError(f"Failed to execute Nmap: {exc}") from exc
 
-    output = process.stdout
+    ports = parse_nmap_xml(process.stdout)
+
+    if ports is None:
+        output = process.stdout
+    else:
+        output = format_nmap_ports(target, ports)
 
     if process.stderr:
         output += f"\n{process.stderr}"
@@ -122,4 +209,5 @@ def run_nmap(
         output=output,
         return_code=process.return_code,
         success=process.return_code == 0,
+        ports=ports or [],
     )

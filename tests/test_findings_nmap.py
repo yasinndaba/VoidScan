@@ -2,7 +2,7 @@
 
 from voidscan.findings import Severity
 from voidscan.findings_nmap import analyze_nmap_result
-from voidscan.scanners.nmap import NmapResult
+from voidscan.scanners.nmap import NmapPort, NmapResult
 
 
 def test_analyze_nmap_detects_ssh():
@@ -214,3 +214,34 @@ def test_analyze_nmap_uses_specific_line_as_evidence():
     )
 
     assert ssh_finding.evidence == "22/tcp open ssh"
+
+
+def test_analyze_nmap_prefers_structured_ports():
+    result = NmapResult(
+        target="127.0.0.1",
+        command=["nmap", "127.0.0.1"],
+        output="ignored text output",
+        return_code=0,
+        success=True,
+        ports=[
+            NmapPort(
+                port=22,
+                protocol="tcp",
+                state="open",
+                service="ssh",
+                version="OpenSSH 8.9p1",
+            ),
+            NmapPort(
+                port=443,
+                protocol="tcp",
+                state="filtered",
+                service="https",
+            ),
+        ],
+    )
+
+    findings = analyze_nmap_result(result)
+
+    assert len(findings) == 1
+    assert findings[0].title == "SSH Service Detected"
+    assert "22/tcp open ssh OpenSSH 8.9p1" in findings[0].evidence

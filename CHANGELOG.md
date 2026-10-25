@@ -15,10 +15,12 @@ All notable changes to VoidScan will be documented here.
 * End-to-end integration tests for Nmap, discovery, subdomains, directory enumeration, and report generation
 * First-scan authorization confirmation, remembered for the session
 * `--yes` flag for scripted use that skips the authorization prompt
+* Structured Nmap XML parsing with a text fallback
+* FFUF JSON parsing and Subfinder JSON parsing, each with a text fallback
 
 ### Changed
 
-* Test suite expanded to **303 tests**
+* Test suite expanded to **313 tests**
 * `pytest-cov` is part of the development extras, and `scripts/check_coverage.py` enforces per-package thresholds
 * The package now targets Python 3.10 consistently for formatting, linting, and type checking
 * TOML loading and environment overrides are fully typed and mypy-clean

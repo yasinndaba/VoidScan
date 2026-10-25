@@ -1,5 +1,6 @@
 """Directory enumeration engine for VoidScan."""
 
+import json
 import logging
 import re
 import shutil
@@ -64,6 +65,39 @@ def validate_wordlist(wordlist: str | Path) -> Path:
     return path
 
 
+def parse_ffuf_results(output: str, url: str) -> list[str]:
+    """Extract discovered URLs from FFUF JSON or text output."""
+
+    results: set[str] = set()
+
+    for raw in output.splitlines():
+        line = raw.strip()
+
+        if not line:
+            continue
+
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError:
+            payload = None
+
+        if isinstance(payload, dict):
+            candidate = payload.get("url")
+
+            if isinstance(candidate, str) and candidate:
+                results.add(candidate)
+
+            continue
+
+        results.add(
+            line
+            if line.startswith(("http://", "https://"))
+            else url.replace("FUZZ", line)
+        )
+
+    return sorted(results)
+
+
 def run_ffuf(
     target: str,
     wordlist: str | Path,
@@ -87,6 +121,7 @@ def run_ffuf(
         "-mc",
         "200,204,301,302,307,401,403",
         "-s",
+        "-json",
     ]
 
     logger.info("Running FFUF command: %s", " ".join(command))
@@ -111,15 +146,7 @@ def run_ffuf(
         logger.error("Failed to execute FFUF: %s", exc)
         raise RuntimeError(f"Failed to execute FFUF: {exc}") from exc
 
-    results = sorted(
-        {
-            line
-            if line.startswith(("http://", "https://"))
-            else url.replace("FUZZ", line)
-            for line in (raw.strip() for raw in process.stdout.splitlines())
-            if line
-        }
-    )
+    results = parse_ffuf_results(process.stdout, url)
 
     logger.info(
         "FFUF finished with exit code %s and %s result(s)",

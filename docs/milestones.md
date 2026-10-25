@@ -137,7 +137,8 @@ Completed:
 * [x] Integration harness with fake tools and a local HTTP server
 * [x] End-to-end integration tests for scans and reports
 * [x] First-scan authorization confirmation with a `--yes` override
-* [x] 303 automated tests passing
+* [x] Structured Nmap XML, FFUF JSON, and Subfinder JSON parsing with text fallbacks
+* [x] 313 automated tests passing
 
 Remaining:
 

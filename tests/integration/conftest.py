@@ -55,8 +55,34 @@ def fake_tools(
     _write_executable(
         bin_dir / "nmap",
         """#!/bin/sh
+xml=0
 target=""
-for arg in "$@"; do target="$arg"; done
+for arg in "$@"; do
+  if [ "$arg" = "-oX" ]; then xml=1; fi
+  target="$arg"
+done
+if [ "$xml" = "1" ]; then
+cat <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<nmaprun scanner="nmap">
+<host><status state="up"/><ports>
+<port protocol="tcp" portid="22">
+  <state state="open"/>
+  <service name="ssh" product="OpenSSH" version="8.9p1"
+           extrainfo="Ubuntu"/>
+</port>
+<port protocol="tcp" portid="80">
+  <state state="open"/>
+  <service name="http" product="nginx" version="1.24.0"/>
+</port>
+<port protocol="tcp" portid="443">
+  <state state="filtered"/>
+  <service name="https"/>
+</port>
+</ports></host>
+</nmaprun>
+EOF
+else
 cat <<EOF
 Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for $target
@@ -69,6 +95,7 @@ PORT   STATE SERVICE VERSION
 
 Nmap done: 1 IP address (1 host up) scanned in 0.05 seconds
 EOF
+fi
 """,
     )
 
@@ -88,10 +115,9 @@ esac
         bin_dir / "subfinder",
         """#!/bin/sh
 cat <<'EOF'
-[INF] Enumerating subdomains for example.com
-www.example.com
-api.example.com
-www.example.com
+{"host":"www.example.com","source":"crtsh"}
+{"host":"api.example.com","source":"crtsh"}
+{"host":"www.example.com","source":"dnsdumpster"}
 not a hostname
 EOF
 """,
@@ -112,6 +138,7 @@ EOF
     _write_executable(
         bin_dir / "ffuf",
         f"""#!{sys.executable}
+import json
 import sys
 import urllib.request
 
@@ -128,7 +155,8 @@ for word in words:
     try:
         with urllib.request.urlopen(candidate, timeout=2) as response:
             if response.status < 500:
-                print(candidate)
+                payload = {{"url": candidate, "status": response.status}}
+                print(json.dumps(payload))
     except Exception:
         continue
 """,

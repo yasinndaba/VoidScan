@@ -30,8 +30,9 @@ def test_nmap_scan_produces_findings_and_reports(
     result = run_nmap("127.0.0.1", "quick", timeout=30)
 
     assert result.success
-    assert "22/tcp open  ssh" in result.output
-    assert "80/tcp open  http" in result.output
+    assert "22/tcp open ssh" in result.output
+    assert "80/tcp open http" in result.output
+    assert [entry.port for entry in result.ports] == [22, 80, 443]
 
     findings = analyze_nmap_result(result)
     titles = {finding.title for finding in findings}

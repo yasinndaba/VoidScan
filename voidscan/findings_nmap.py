@@ -1,6 +1,7 @@
 """Nmap security findings analyzer for VoidScan."""
 
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass
 
 from voidscan.findings import Finding, Severity
@@ -158,6 +159,45 @@ def _rule_for(port: int, service: str) -> ServiceRule:
     return PORT_RULES.get(port, GENERIC_RULE)
 
 
+def _port_entries(
+    result: NmapResult,
+) -> Iterator[tuple[int, str, str, str, str]]:
+    """Yield port details from structured output or parse text."""
+
+    if result.ports:
+        for entry in result.ports:
+            evidence = (
+                f"{entry.port}/{entry.protocol} {entry.state} {entry.service}"
+            )
+
+            if entry.version:
+                evidence += f" {entry.version}"
+
+            yield (
+                entry.port,
+                entry.protocol,
+                entry.state,
+                entry.service,
+                evidence,
+            )
+
+        return
+
+    for line in result.output.splitlines():
+        match = OPEN_PORT_PATTERN.search(line)
+
+        if not match:
+            continue
+
+        yield (
+            int(match.group(1)),
+            match.group(2),
+            match.group(3),
+            match.group(4),
+            line.strip(),
+        )
+
+
 def analyze_nmap_result(result: NmapResult) -> list[Finding]:
     """Convert an Nmap result into structured security findings."""
 
@@ -166,20 +206,14 @@ def analyze_nmap_result(result: NmapResult) -> list[Finding]:
 
     findings: list[Finding] = []
 
-    for line in result.output.splitlines():
-        match = OPEN_PORT_PATTERN.search(line)
+    for port, protocol, state, service, evidence in _port_entries(result):
+        state = state.lower()
 
-        if not match:
+        if not state.startswith("open"):
             continue
 
-        port = int(match.group(1))
-        protocol = match.group(2).lower()
-        state = match.group(3).lower()
-        service = match.group(4).lower()
-
+        service = service.lower()
         rule = _rule_for(port, service)
-
-        evidence = line.strip()
 
         findings.append(
             Finding(

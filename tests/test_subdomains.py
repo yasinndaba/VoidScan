@@ -48,6 +48,7 @@ def test_subfinder(monkeypatch):
             "-d",
             "example.com",
             "-silent",
+            "-json",
         ]
         assert kwargs["timeout"] == 300
 
@@ -311,3 +312,26 @@ def test_enumerate_subdomains_uses_amass(monkeypatch):
     )
 
     assert enumerate_subdomains("example.com", "amass") is sentinel
+
+
+def test_parse_subdomains_parses_json_lines():
+    output = (
+        '{"host": "www.example.com", "source": "crtsh"}\n'
+        '{"host": "api.example.com"}\n'
+        '{"source": "crtsh"}\n'
+        '{"host": "not a hostname"}\n'
+    )
+
+    assert parse_subdomains(output) == [
+        "api.example.com",
+        "www.example.com",
+    ]
+
+
+def test_parse_subdomains_falls_back_to_text():
+    output = "[INF] starting\nwww.example.com\nmail.example.com\n"
+
+    assert parse_subdomains(output) == [
+        "mail.example.com",
+        "www.example.com",
+    ]

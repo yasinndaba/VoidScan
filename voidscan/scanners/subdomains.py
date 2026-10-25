@@ -1,5 +1,6 @@
 """Subdomain enumeration engine for VoidScan."""
 
+import json
 import logging
 import math
 import shutil
@@ -47,14 +48,32 @@ def tool_installed(engine: str) -> bool:
 def parse_subdomains(output: str) -> list[str]:
     """Extract valid hostnames from enumeration tool output.
 
-    Some tools (notably Amass) print banner and session lines to stdout,
-    so raw output cannot be used directly.
+    Subfinder's JSON output is parsed when present. Amass and older tool
+    versions still emit banner and session lines to stdout, so plain text
+    lines are used as a fallback.
     """
 
     subdomains = set()
 
-    for line in output.splitlines():
-        candidate = line.strip().lower().rstrip(".")
+    for raw in output.splitlines():
+        candidate = raw.strip()
+
+        if not candidate:
+            continue
+
+        if candidate.startswith("{"):
+            try:
+                payload = json.loads(candidate)
+            except json.JSONDecodeError:
+                payload = None
+
+            if isinstance(payload, dict):
+                host = payload.get("host") or payload.get("name")
+                if not isinstance(host, str):
+                    continue
+                candidate = host
+
+        candidate = candidate.lower().rstrip(".")
 
         if candidate and is_valid_hostname(candidate):
             subdomains.add(candidate)
@@ -78,6 +97,7 @@ def run_subfinder(
         "-d",
         domain,
         "-silent",
+        "-json",
     ]
 
     logger.info("Running Subfinder command: %s", " ".join(command))

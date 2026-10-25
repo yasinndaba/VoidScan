@@ -64,6 +64,7 @@ Milestone 6 — Testing & Quality: In Progress
 - Nmap network scanning
 - Quick, standard, and full scan profiles
 - Safe subprocess execution
+- Structured Nmap XML output for reliable port details
 - Configurable Nmap timeout
 - Live host discovery
 - CIDR network validation
@@ -72,11 +73,11 @@ Milestone 6 — Testing & Quality: In Progress
 ### Web Reconnaissance
 
 - Subdomain enumeration
-- Subfinder integration
+- Subfinder integration with JSON output parsing
 - Amass integration, including partial results on timeout
 - Optional Subfinder retry after an Amass timeout
 - Directory enumeration
-- FFUF integration
+- FFUF integration with JSON output parsing
 - DIRB integration
 - Configurable FFUF and DIRB timeouts
 - URL validation
