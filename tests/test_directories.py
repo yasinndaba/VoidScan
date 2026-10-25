@@ -286,3 +286,21 @@ def test_enumerate_directories_uses_dirb(monkeypatch, tmp_path):
     assert (
         enumerate_directories("http://127.0.0.1", "dirb", wordlist) is sentinel
     )
+
+
+@patch("voidscan.scanners.directories.run_command")
+def test_run_ffuf_accepts_full_urls(mock_run, tmp_path):
+    wordlist = tmp_path / "custom.txt"
+    wordlist.write_text("admin\nlogin\n")
+
+    mock_run.side_effect = lambda command, **kwargs: make_result(
+        command,
+        "http://127.0.0.1/admin\nhttp://127.0.0.1/login\n",
+    )
+
+    result = run_ffuf("http://127.0.0.1", wordlist)
+
+    assert result.results == [
+        "http://127.0.0.1/admin",
+        "http://127.0.0.1/login",
+    ]

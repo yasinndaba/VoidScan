@@ -1,6 +1,6 @@
 # VoidScan Roadmap
 
-Current baseline: **v0.2.0**, **288 tests passing**, **93.7% coverage**, Linux
+Current baseline: **v0.2.0**, **295 tests passing**, **93.7% coverage**, Linux
 supported. Ruff and mypy pass on the current tree.
 
 Milestones 0–5 are complete. The v0.2 reliability milestone is complete;
@@ -143,7 +143,7 @@ Exit criteria:
 
 ### v0.3 — Quality gate
 
-Status: In progress — E2, E3, and E4 complete; A4, B4, E1, and E5–E7 remain.
+Status: In progress — E1, E2, E3, and E4 complete; A4, B4, and E5–E7 remain.
 
 Scope: A4, B4, E1–E7.
 
@@ -156,6 +156,7 @@ Exit criteria:
 
 Progress:
 
+- [x] E1 — Integration harness with fake tools and a local HTTP server
 - [x] E2 — Coverage gate at 85% overall and 90% for scanners and reporters
 - [x] E3 — Ruff check and format pass locally
 - [x] E4 — Mypy passes on `voidscan/` with strict untyped-definition checks

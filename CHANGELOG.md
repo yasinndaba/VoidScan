@@ -11,15 +11,21 @@ All notable changes to VoidScan will be documented here.
 * README section documenting the local development checks
 * Coverage gate: 85% overall and 90% for scanners and reporters
 * Menu-flow tests covering target management, every scan flow, reports, logs, settings, and the main loop
+* Integration harness with fake external tools and a local HTTP server
+* End-to-end integration tests for Nmap, discovery, subdomains, directory enumeration, and report generation
 
 ### Changed
 
-* Test suite expanded to **288 tests**
+* Test suite expanded to **295 tests**
 * `pytest-cov` is part of the development extras, and `scripts/check_coverage.py` enforces per-package thresholds
 * The package now targets Python 3.10 consistently for formatting, linting, and type checking
 * TOML loading and environment overrides are fully typed and mypy-clean
 * Subprocess startup has explicit POSIX and non-POSIX branches, and timeouts chain their original exception
 * The code base is formatted with Ruff at a 79-character line length
+
+### Fixed
+
+* FFUF results that are already full URLs are no longer prefixed a second time
 
 ## [0.2.0] - 2026-10-25
 

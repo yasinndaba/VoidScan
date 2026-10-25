@@ -296,6 +296,10 @@ python scripts/check_coverage.py
 `pytest --cov` fails when overall coverage drops below 85%;
 `scripts/check_coverage.py` enforces the per-package thresholds.
 
+Integration tests under `tests/integration/` run with the rest of the
+suite. They use fake tool binaries and a loopback HTTP server, so they do
+not need the external tools or an internet connection.
+
 To run the Ruff checks automatically on staged files, install
 [`pre-commit`](https://pre-commit.com/) and enable the bundled hook:
 

@@ -134,11 +134,12 @@ Completed:
 * [x] Ruff linting and formatting
 * [x] Mypy type checking for `voidscan/`
 * [x] Coverage gate at 85% overall and 90% for scanners and reporters
-* [x] 288 automated tests passing
+* [x] Integration harness with fake tools and a local HTTP server
+* [x] End-to-end integration tests for scans and reports
+* [x] 295 automated tests passing
 
 Remaining:
 
-* [ ] Automated integration tests
 * [ ] Code quality improvements
 
 ## Milestone 7 — CI/CD

@@ -113,9 +113,11 @@ def run_ffuf(
 
     results = sorted(
         {
-            url.replace("FUZZ", word.strip())
-            for word in process.stdout.splitlines()
-            if word.strip()
+            line
+            if line.startswith(("http://", "https://"))
+            else url.replace("FUZZ", line)
+            for line in (raw.strip() for raw in process.stdout.splitlines())
+            if line
         }
     )
 
