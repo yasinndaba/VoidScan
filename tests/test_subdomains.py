@@ -246,3 +246,68 @@ def test_enumerate_without_tool(monkeypatch):
 
     with pytest.raises(RuntimeError, match="not installed"):
         enumerate_subdomains("example.com", "subfinder")
+
+
+def test_subfinder_os_error(monkeypatch):
+    def fake_run(command, **kwargs):
+        raise OSError("subfinder vanished")
+
+    monkeypatch.setattr(
+        "voidscan.scanners.subdomains.run_command",
+        fake_run,
+    )
+
+    with pytest.raises(RuntimeError, match="Failed to execute Subfinder"):
+        run_subfinder("example.com")
+
+
+def test_amass_os_error(monkeypatch):
+    def fake_run(command, **kwargs):
+        raise OSError("amass vanished")
+
+    monkeypatch.setattr(
+        "voidscan.scanners.subdomains.run_command",
+        fake_run,
+    )
+
+    with pytest.raises(RuntimeError, match="Failed to execute Amass"):
+        run_amass("example.com")
+
+
+def test_enumerate_subdomains_uses_subfinder(monkeypatch):
+    sentinel = object()
+    observed = {}
+
+    def fake_run(domain, **kwargs):
+        observed["domain"] = domain
+        observed["timeout"] = kwargs["timeout"]
+        return sentinel
+
+    monkeypatch.setattr(
+        "voidscan.scanners.subdomains.tool_installed",
+        lambda engine: True,
+    )
+    monkeypatch.setattr(
+        "voidscan.scanners.subdomains.run_subfinder",
+        fake_run,
+    )
+
+    result = enumerate_subdomains("example.com", "subfinder", timeout=14)
+
+    assert result is sentinel
+    assert observed == {"domain": "example.com", "timeout": 14}
+
+
+def test_enumerate_subdomains_uses_amass(monkeypatch):
+    sentinel = object()
+
+    monkeypatch.setattr(
+        "voidscan.scanners.subdomains.tool_installed",
+        lambda engine: True,
+    )
+    monkeypatch.setattr(
+        "voidscan.scanners.subdomains.run_amass",
+        lambda *args, **kwargs: sentinel,
+    )
+
+    assert enumerate_subdomains("example.com", "amass") is sentinel

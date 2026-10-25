@@ -133,12 +133,12 @@ Completed:
 * [x] Consistent empty, timeout, missing-tool, and invalid-input states
 * [x] Ruff linting and formatting
 * [x] Mypy type checking for `voidscan/`
-* [x] 215 automated tests passing
+* [x] Coverage gate at 85% overall and 90% for scanners and reporters
+* [x] 288 automated tests passing
 
 Remaining:
 
 * [ ] Automated integration tests
-* [ ] Coverage gate
 * [ ] Code quality improvements
 
 ## Milestone 7 — CI/CD

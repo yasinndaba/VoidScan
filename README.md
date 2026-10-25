@@ -126,7 +126,7 @@ git clone https://github.com/yasinndaba/VoidScan.git
 cd VoidScan
 python -m venv .venv
 source .venv/bin/activate
-pip install -e ".[test]"
+pip install -e ".[dev]"
 ```
 
 ## Usage
@@ -256,14 +256,25 @@ commit:
 ```bash
 pip install -e ".[dev]"
 pytest -q
-ruff check voidscan tests
-ruff format --check voidscan tests
+ruff check voidscan tests scripts
+ruff format --check voidscan tests scripts
 mypy
 ```
 
 Ruff and mypy are configured in `pyproject.toml`, so the checks need no
 extra flags. The test suite runs without network access and does not
 require the external tools.
+
+Coverage is part of the quality gate. The overall threshold is 85%, and
+the scanners and reporters must stay at 90% or higher:
+
+```bash
+pytest -q --cov
+python scripts/check_coverage.py
+```
+
+`pytest --cov` fails when overall coverage drops below 85%;
+`scripts/check_coverage.py` enforces the per-package thresholds.
 
 To run the Ruff checks automatically on staged files, install
 [`pre-commit`](https://pre-commit.com/) and enable the bundled hook:
@@ -315,6 +326,8 @@ VoidScan/
 │   └── dependencies.py
 │
 ├── tests/
+├── scripts/
+│   └── check_coverage.py
 ├── docs/
 ├── screenshots/
 ├── main.py

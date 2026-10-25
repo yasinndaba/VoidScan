@@ -2,6 +2,7 @@ from collections import namedtuple
 from contextlib import suppress
 from unittest.mock import mock_open, patch
 
+import pytest
 from voidscan.scanners.system_monitor import (
     get_memory_info,
     get_system_monitor,
@@ -95,3 +96,27 @@ def test_memory_info_handles_invalid_lines():
         suppress(ValueError),
     ):
         get_memory_info()
+
+
+def test_get_memory_info_os_error():
+    with (
+        patch("builtins.open", side_effect=OSError("missing")),
+        pytest.raises(RuntimeError, match="memory"),
+    ):
+        get_memory_info()
+
+
+def test_get_uptime_os_error():
+    with (
+        patch("builtins.open", side_effect=OSError("missing")),
+        pytest.raises(RuntimeError, match="uptime"),
+    ):
+        get_uptime()
+
+
+def test_get_uptime_invalid_value():
+    with (
+        patch("builtins.open", mock_open(read_data="not-a-number\n")),
+        pytest.raises(RuntimeError, match="uptime"),
+    ):
+        get_uptime()

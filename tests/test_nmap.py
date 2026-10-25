@@ -5,6 +5,7 @@ from voidscan.scanners.nmap import (
     NMAP_TIMEOUT,
     SCAN_PROFILES,
     build_nmap_command,
+    has_root_privileges,
     nmap_installed,
     run_nmap,
 )
@@ -171,3 +172,65 @@ def test_build_nmap_command_rejects_unknown_profile(monkeypatch):
 
     with pytest.raises(ValueError, match="Unknown scan profile"):
         build_nmap_command("127.0.0.1", "unknown")
+
+
+def test_has_root_privileges_returns_boolean():
+    assert isinstance(has_root_privileges(), bool)
+
+
+def test_run_nmap_requires_nmap(monkeypatch):
+    monkeypatch.setattr(
+        "voidscan.scanners.nmap.nmap_installed",
+        lambda: False,
+    )
+
+    with pytest.raises(RuntimeError, match="not installed"):
+        run_nmap("127.0.0.1", "quick")
+
+
+def test_run_nmap_os_error(monkeypatch):
+    def fake_run(command, **kwargs):
+        raise OSError("nmap vanished")
+
+    monkeypatch.setattr(
+        "voidscan.scanners.nmap.run_command",
+        fake_run,
+    )
+    monkeypatch.setattr(
+        "voidscan.scanners.nmap.nmap_installed",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "voidscan.scanners.nmap.has_root_privileges",
+        lambda: False,
+    )
+
+    with pytest.raises(RuntimeError, match="Failed to execute Nmap"):
+        run_nmap("127.0.0.1", "quick")
+
+
+def test_run_nmap_appends_stderr(monkeypatch):
+    def fake_run(command, **kwargs):
+        return CommandResult(
+            command=command,
+            stdout="22/tcp open ssh",
+            stderr="warning: host seems down",
+            return_code=0,
+        )
+
+    monkeypatch.setattr(
+        "voidscan.scanners.nmap.run_command",
+        fake_run,
+    )
+    monkeypatch.setattr(
+        "voidscan.scanners.nmap.nmap_installed",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "voidscan.scanners.nmap.has_root_privileges",
+        lambda: False,
+    )
+
+    result = run_nmap("127.0.0.1", "quick")
+
+    assert result.output == "22/tcp open ssh\nwarning: host seems down"

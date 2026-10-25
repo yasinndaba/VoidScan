@@ -181,3 +181,108 @@ def test_run_ffuf_timeout(mock_run, tmp_path):
 
     with pytest.raises(ScanTimeout, match="timed out after 17 seconds"):
         run_ffuf("http://127.0.0.1", wordlist, timeout=17)
+
+
+def test_validate_wordlist_reports_unreadable_file(tmp_path):
+    wordlist = tmp_path / "unreadable.txt"
+    wordlist.write_text("admin\n")
+
+    with (
+        patch("pathlib.Path.open", side_effect=OSError("denied")),
+        pytest.raises(ValueError, match="not readable"),
+    ):
+        validate_wordlist(wordlist)
+
+
+@patch("voidscan.scanners.directories.run_command")
+def test_run_ffuf_os_error(mock_run, tmp_path):
+    wordlist = tmp_path / "custom.txt"
+    wordlist.write_text("admin\n")
+
+    mock_run.side_effect = OSError("ffuf vanished")
+
+    with pytest.raises(RuntimeError, match="Failed to execute FFUF"):
+        run_ffuf("http://127.0.0.1", wordlist)
+
+
+@patch("voidscan.scanners.directories.run_command")
+def test_run_dirb_timeout(mock_run, tmp_path):
+    wordlist = tmp_path / "custom.txt"
+    wordlist.write_text("admin\n")
+
+    mock_run.side_effect = ScanTimeout(
+        "Command timed out",
+        timeout=21,
+        stdout="http://127.0.0.1/admin",
+    )
+
+    with pytest.raises(ScanTimeout, match="timed out after 21 seconds"):
+        run_dirb("http://127.0.0.1", wordlist, timeout=21)
+
+
+@patch("voidscan.scanners.directories.run_command")
+def test_run_dirb_os_error(mock_run, tmp_path):
+    wordlist = tmp_path / "custom.txt"
+    wordlist.write_text("admin\n")
+
+    mock_run.side_effect = OSError("dirb vanished")
+
+    with pytest.raises(RuntimeError, match="Failed to execute DIRB"):
+        run_dirb("http://127.0.0.1", wordlist)
+
+
+def test_enumerate_directories_uses_ffuf(monkeypatch, tmp_path):
+    wordlist = tmp_path / "custom.txt"
+    wordlist.write_text("admin\n")
+
+    sentinel = object()
+    observed = {}
+
+    def fake_run_ffuf(target, wordlist_path, **kwargs):
+        observed["target"] = target
+        observed["wordlist"] = wordlist_path
+        observed["timeout"] = kwargs["timeout"]
+        return sentinel
+
+    monkeypatch.setattr(
+        "voidscan.scanners.directories.tool_installed",
+        lambda engine: True,
+    )
+    monkeypatch.setattr(
+        "voidscan.scanners.directories.run_ffuf",
+        fake_run_ffuf,
+    )
+
+    result = enumerate_directories(
+        "http://127.0.0.1",
+        "ffuf",
+        wordlist,
+        timeout=11,
+    )
+
+    assert result is sentinel
+    assert observed == {
+        "target": "http://127.0.0.1",
+        "wordlist": wordlist,
+        "timeout": 11,
+    }
+
+
+def test_enumerate_directories_uses_dirb(monkeypatch, tmp_path):
+    wordlist = tmp_path / "custom.txt"
+    wordlist.write_text("admin\n")
+
+    sentinel = object()
+
+    monkeypatch.setattr(
+        "voidscan.scanners.directories.tool_installed",
+        lambda engine: True,
+    )
+    monkeypatch.setattr(
+        "voidscan.scanners.directories.run_dirb",
+        lambda *args, **kwargs: sentinel,
+    )
+
+    assert (
+        enumerate_directories("http://127.0.0.1", "dirb", wordlist) is sentinel
+    )

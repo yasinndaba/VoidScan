@@ -9,9 +9,13 @@ All notable changes to VoidScan will be documented here.
 * Ruff linting and formatting with a `dev` extras group
 * Mypy type checking for `voidscan/` with strict untyped-definition checks
 * README section documenting the local development checks
+* Coverage gate: 85% overall and 90% for scanners and reporters
+* Menu-flow tests covering target management, every scan flow, reports, logs, settings, and the main loop
 
 ### Changed
 
+* Test suite expanded to **288 tests**
+* `pytest-cov` is part of the development extras, and `scripts/check_coverage.py` enforces per-package thresholds
 * The package now targets Python 3.10 consistently for formatting, linting, and type checking
 * TOML loading and environment overrides are fully typed and mypy-clean
 * Subprocess startup has explicit POSIX and non-POSIX branches, and timeouts chain their original exception

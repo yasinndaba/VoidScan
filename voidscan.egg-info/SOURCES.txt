@@ -16,6 +16,7 @@ tests/test_findings_subdomains.py
 tests/test_html_reporter.py
 tests/test_ip_info.py
 tests/test_menu.py
+tests/test_menu_flows.py
 tests/test_nmap.py
 tests/test_process.py
 tests/test_reporter.py
