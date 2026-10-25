@@ -26,6 +26,9 @@ dev = [
     "pytest-cov>=5.0",
     "mypy>=1.11",
     "ruff>=0.9",
+    # Needed to type-check the Python 3.10 tomli fallback on newer
+    # interpreters.
+    "tomli>=2.0",
 ]
 
 [project.scripts]

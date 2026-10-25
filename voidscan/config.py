@@ -9,12 +9,12 @@ import threading
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 if sys.version_info >= (3, 11):
     import tomllib
 else:  # pragma: no cover - Python 3.10 fallback
-    import tomli as tomllib  # type: ignore[import-not-found]
+    import tomli as tomllib
 
 
 logger = logging.getLogger("voidscan.config")
@@ -91,7 +91,7 @@ def _read_toml(
 
     try:
         with path.open("rb") as config_file:
-            return cast(dict[str, Any], tomllib.load(config_file))
+            return tomllib.load(config_file)
     except tomllib.TOMLDecodeError as exc:
         warnings.append(
             f"Could not parse {path}: {exc}. Using default settings."
