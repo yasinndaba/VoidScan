@@ -9,8 +9,16 @@ description = "Authorized reconnaissance and security assessment toolkit"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
+dependencies = [
+    "rich>=13.0",
+]
 authors = [
     { name = "Yasin Ndaba" }
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0",
 ]
 
 [project.scripts]

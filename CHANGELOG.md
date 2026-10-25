@@ -14,16 +14,44 @@ All notable changes to VoidScan will be documented here.
 * Terminal report summary shown after saving a report
 * Report summaries report finding counts and a severity breakdown
 * HTML reporter tests, subdomain scanner tests, and discovery scanner tests
+* URL targets and bare-host directory enumeration
+* Startup dependency warnings and external tool status in Settings
+* In-app log viewer
+* Non-root TCP connect fallback for Nmap scan profiles
+* Open-port findings for all services, with risk-based severities
+* Concurrent host discovery with a progress bar and a 4096-host cap
+* Unique timestamped HTML report filenames
+* Graceful Ctrl+D/EOF handling
+* Tests for URL targets, non-root scans, DIRB/Amass parsing, discovery limits, and report filenames
 
 ### Changed
 
 * A report is now built once per scan and reused for both JSON and HTML output
 * Report summaries now count findings even when there are none
-* Test suite consolidated under `tests/`; **124 tests passing**
+* DIRB and FFUF results are reported as full URLs instead of raw tool lines
+* Amass and Subfinder output is filtered to valid hostnames
+* Terminal result tables are capped at 50 rows; full results remain in reports
+* Logging now writes to `~/.voidscan/logs/voidscan.log` and records scan commands
+* `rich` is declared as a runtime dependency, with a `test` extra for pytest
+* README now documents installation, usage, target types, and limits
+* Test suite consolidated under `tests/`; **174 tests passing**
+
+### Fixed
+
+* Directory Enumeration is reachable: URL targets are accepted, and bare hosts
+  fall back to `http://`
+* Nmap findings no longer miss open ports whose service is not SSH/HTTP/HTTPS
+* Standard and Full Nmap profiles work without root privileges
+* DIRB banner/footer lines are no longer counted as discovered content
+* Amass banner and session lines are no longer counted as subdomains
+* View Logs and Settings are implemented instead of placeholders
+* HTML reports no longer overwrite previous reports of the same scan type
+* Ctrl+D at a prompt no longer crashes with an `EOFError` traceback
 
 ### Removed
 
 * Duplicate `voidscan/tests/` tree, superseded by `tests/`
+* Unused placeholder module helper
 
 ## [0.1.0] - 2026-09-06
 

@@ -86,8 +86,8 @@ def test_analyze_nmap_failed_scan_returns_no_findings():
     assert findings == []
 
 
-def test_analyze_nmap_unknown_service_returns_no_finding():
-    """Test that an unrecognized service produces no finding."""
+def test_analyze_nmap_unknown_service_still_reports_open_port():
+    """Test that every open port produces at least a generic finding."""
 
     result = NmapResult(
         target="127.0.0.1",
@@ -99,7 +99,88 @@ def test_analyze_nmap_unknown_service_returns_no_finding():
 
     findings = analyze_nmap_result(result)
 
-    assert findings == []
+    assert len(findings) == 1
+    assert findings[0].title == "Open Port Detected"
+    assert findings[0].severity == Severity.INFO
+    assert "9999/tcp" in findings[0].evidence
+
+
+def test_analyze_nmap_detects_http_proxy_as_http():
+    """Test that HTTP-like service names are recognized as HTTP."""
+
+    result = NmapResult(
+        target="127.0.0.1",
+        command=["nmap", "127.0.0.1"],
+        output="8080/tcp open http-proxy",
+        return_code=0,
+        success=True,
+    )
+
+    findings = analyze_nmap_result(result)
+
+    assert len(findings) == 1
+    assert findings[0].title == "HTTP Service Detected"
+    assert findings[0].severity == Severity.INFO
+
+
+def test_analyze_nmap_escalates_risky_services():
+    """Test that risky exposed services get an appropriate severity."""
+
+    result = NmapResult(
+        target="192.168.1.10",
+        command=["nmap", "192.168.1.10"],
+        output=(
+            "23/tcp open telnet\n"
+            "3306/tcp open mysql\n"
+            "445/tcp open microsoft-ds"
+        ),
+        return_code=0,
+        success=True,
+    )
+
+    findings = analyze_nmap_result(result)
+
+    severities = {
+        finding.title: finding.severity for finding in findings
+    }
+
+    assert severities["Telnet Service Detected"] == Severity.HIGH
+    assert severities["Database Service Detected"] == Severity.MEDIUM
+    assert severities["SMB Service Detected"] == Severity.MEDIUM
+
+
+def test_analyze_nmap_uses_port_fallback():
+    """Test that a known port is classified when the service is unclear."""
+
+    result = NmapResult(
+        target="192.168.1.10",
+        command=["nmap", "192.168.1.10"],
+        output="3389/tcp open tcpwrapped",
+        return_code=0,
+        success=True,
+    )
+
+    findings = analyze_nmap_result(result)
+
+    assert len(findings) == 1
+    assert findings[0].title == "Remote Desktop Service Detected"
+
+
+def test_analyze_nmap_handles_open_filtered_ports():
+    """Test that open|filtered ports are still reported."""
+
+    result = NmapResult(
+        target="192.168.1.10",
+        command=["nmap", "192.168.1.10"],
+        output="68/udp open|filtered dhcpc",
+        return_code=0,
+        success=True,
+    )
+
+    findings = analyze_nmap_result(result)
+
+    assert len(findings) == 1
+    assert "open|filtered" in findings[0].evidence
 def test_analyze_nmap_detects_https_without_http():
     """Test that HTTPS does not incorrectly produce an HTTP finding."""
 

@@ -126,7 +126,7 @@ def test_network_scan_saves_html_report_with_findings(tmp_path: Path):
     run_network_scan(tmp_path, "22/tcp open ssh")
 
     html = (
-        list(tmp_path.glob("network_scan_report.html"))[0]
+        list(tmp_path.glob("network_scan_*.html"))[0]
     ).read_text(encoding="utf-8")
 
     assert "Security Findings (1)" in html

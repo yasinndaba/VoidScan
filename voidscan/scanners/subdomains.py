@@ -1,8 +1,18 @@
 """Subdomain enumeration engine for VoidScan."""
 
+import logging
 import shutil
 import subprocess
 from dataclasses import dataclass
+
+from voidscan.validators import is_valid_hostname
+
+
+logger = logging.getLogger("voidscan.scanners.subdomains")
+
+SUBFINDER_TIMEOUT = 300
+AMASS_TIMEOUT = 900
+AMASS_PROGRESS_TIMEOUT_MINUTES = 5
 
 
 @dataclass
@@ -31,6 +41,24 @@ def tool_installed(engine: str) -> bool:
     return shutil.which(SUPPORTED_ENGINES[engine]) is not None
 
 
+def parse_subdomains(output: str) -> list[str]:
+    """Extract valid hostnames from enumeration tool output.
+
+    Some tools (notably Amass) print banner and session lines to stdout,
+    so raw output cannot be used directly.
+    """
+
+    subdomains = set()
+
+    for line in output.splitlines():
+        candidate = line.strip().lower().rstrip(".")
+
+        if candidate and is_valid_hostname(candidate):
+            subdomains.add(candidate)
+
+    return sorted(subdomains)
+
+
 def run_subfinder(domain: str) -> SubdomainResult:
     """Run Subfinder against a domain."""
 
@@ -41,29 +69,34 @@ def run_subfinder(domain: str) -> SubdomainResult:
         "-silent",
     ]
 
+    logger.info("Running Subfinder command: %s", " ".join(command))
+
     try:
         process = subprocess.run(
             command,
             capture_output=True,
             text=True,
-            timeout=300,
+            timeout=SUBFINDER_TIMEOUT,
             check=False,
         )
     except subprocess.TimeoutExpired as exc:
+        logger.warning("Subfinder timed out for domain %s", domain)
         raise RuntimeError(
-            "Subfinder enumeration timed out after 300 seconds."
+            f"Subfinder enumeration timed out after "
+            f"{SUBFINDER_TIMEOUT} seconds."
         ) from exc
     except OSError as exc:
+        logger.error("Failed to execute Subfinder: %s", exc)
         raise RuntimeError(
             f"Failed to execute Subfinder: {exc}"
         ) from exc
 
-    subdomains = sorted(
-        {
-            line.strip()
-            for line in process.stdout.splitlines()
-            if line.strip()
-        }
+    subdomains = parse_subdomains(process.stdout)
+
+    logger.info(
+        "Subfinder finished with exit code %s and %s result(s)",
+        process.returncode,
+        len(subdomains),
     )
 
     return SubdomainResult(
@@ -82,33 +115,41 @@ def run_amass(domain: str) -> SubdomainResult:
         "amass",
         "enum",
         "-passive",
+        "-timeout",
+        str(AMASS_PROGRESS_TIMEOUT_MINUTES),
         "-d",
         domain,
     ]
+
+    logger.info("Running Amass command: %s", " ".join(command))
 
     try:
         process = subprocess.run(
             command,
             capture_output=True,
             text=True,
-            timeout=300,
+            timeout=AMASS_TIMEOUT,
             check=False,
         )
     except subprocess.TimeoutExpired as exc:
+        logger.warning("Amass timed out for domain %s", domain)
         raise RuntimeError(
-            "Amass enumeration timed out after 300 seconds."
+            f"Amass enumeration timed out after "
+            f"{AMASS_TIMEOUT} seconds. Try a smaller domain or use "
+            f"Subfinder for faster results."
         ) from exc
     except OSError as exc:
+        logger.error("Failed to execute Amass: %s", exc)
         raise RuntimeError(
             f"Failed to execute Amass: {exc}"
         ) from exc
 
-    subdomains = sorted(
-        {
-            line.strip()
-            for line in process.stdout.splitlines()
-            if line.strip()
-        }
+    subdomains = parse_subdomains(process.stdout)
+
+    logger.info(
+        "Amass finished with exit code %s and %s result(s)",
+        process.returncode,
+        len(subdomains),
     )
 
     return SubdomainResult(

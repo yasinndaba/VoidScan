@@ -6,6 +6,7 @@ import pytest
 from voidscan.scanners.directories import (
     DEFAULT_WORDLIST,
     enumerate_directories,
+    parse_dirb_results,
     run_dirb,
     run_ffuf,
     tool_installed,
@@ -77,7 +78,10 @@ def test_run_ffuf(mock_run, tmp_path):
     assert result.engine == "ffuf"
     assert result.target == "http://127.0.0.1"
     assert result.wordlist == str(wordlist)
-    assert result.results == ["admin", "login"]
+    assert result.results == [
+        "http://127.0.0.1/admin",
+        "http://127.0.0.1/login",
+    ]
     assert result.success is True
 
 
@@ -86,7 +90,19 @@ def test_run_dirb(mock_run, tmp_path):
     wordlist = tmp_path / "custom.txt"
     wordlist.write_text("admin\nlogin\n")
 
-    mock_run.return_value.stdout = "FOUND: /admin\nFOUND: /login\n"
+    mock_run.return_value.stdout = (
+        "-----------------\n"
+        "DIRB v2.22\n"
+        "By The Dark Raver\n"
+        "-----------------\n"
+        "---- Scanning URL: http://127.0.0.1/ ----\n"
+        "+ http://127.0.0.1/admin (CODE:301|SIZE:0)\n"
+        "+ http://127.0.0.1/login (CODE:200|SIZE:42)\n"
+        "\n"
+        "-----------------\n"
+        "END_TIME: Sun Oct 25 13:43:56 2026\n"
+        "DOWNLOADED: 2 - FOUND: 2\n"
+    )
     mock_run.return_value.stderr = ""
     mock_run.return_value.returncode = 0
 
@@ -100,7 +116,29 @@ def test_run_dirb(mock_run, tmp_path):
     assert "-S" in command
 
     assert result.engine == "dirb"
+    assert result.results == [
+        "http://127.0.0.1/admin",
+        "http://127.0.0.1/login",
+    ]
     assert result.success is True
+
+
+def test_parse_dirb_results_ignores_banner_lines():
+    output = (
+        "-----------------\n"
+        "DIRB v2.22\n"
+        "By The Dark Raver\n"
+        "-----------------\n"
+        "---- Scanning URL: http://example.com/ ----\n"
+        "+ http://example.com/admin (CODE:301|SIZE:0)\n"
+        "+ http://example.com/robots.txt (CODE:200|SIZE:7)\n"
+        "DOWNLOADED: 2 - FOUND: 2\n"
+    )
+
+    assert parse_dirb_results(output) == [
+        "http://example.com/admin",
+        "http://example.com/robots.txt",
+    ]
 
 
 def test_enumerate_directories_invalid_engine():

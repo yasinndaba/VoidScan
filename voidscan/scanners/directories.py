@@ -1,12 +1,18 @@
 """Directory enumeration engine for VoidScan."""
 
+import logging
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
 
+logger = logging.getLogger("voidscan.scanners.directories")
+
 DEFAULT_WORDLIST = Path("/usr/share/dirb/wordlists/common.txt")
+
+DIRB_RESULT_PATTERN = re.compile(r"^\+\s+(https?://\S+)")
 
 
 @dataclass
@@ -73,6 +79,8 @@ def run_ffuf(
         "-s",
     ]
 
+    logger.info("Running FFUF command: %s", " ".join(command))
+
     try:
         process = subprocess.run(
             command,
@@ -82,19 +90,27 @@ def run_ffuf(
             check=False,
         )
     except subprocess.TimeoutExpired as exc:
+        logger.warning("FFUF enumeration timed out for target %s", target)
         raise RuntimeError(
             "FFUF directory enumeration timed out after 300 seconds."
         ) from exc
     except OSError as exc:
+        logger.error("Failed to execute FFUF: %s", exc)
         raise RuntimeError(
             f"Failed to execute FFUF: {exc}"
         ) from exc
 
     results = sorted({
-        line.strip()
-        for line in process.stdout.splitlines()
-        if line.strip()
+        url.replace("FUZZ", word.strip())
+        for word in process.stdout.splitlines()
+        if word.strip()
     })
+
+    logger.info(
+        "FFUF finished with exit code %s and %s result(s)",
+        process.returncode,
+        len(results),
+    )
 
     return DirectoryResult(
         target=target,
@@ -104,6 +120,16 @@ def run_ffuf(
         return_code=process.returncode,
         success=process.returncode == 0,
     )
+
+
+def parse_dirb_results(output: str) -> list[str]:
+    """Extract discovered URLs from DIRB output."""
+
+    return sorted({
+        match.group(1)
+        for line in output.splitlines()
+        if (match := DIRB_RESULT_PATTERN.match(line.strip()))
+    })
 
 
 def run_dirb(
@@ -121,6 +147,8 @@ def run_dirb(
         "-S",
     ]
 
+    logger.info("Running DIRB command: %s", " ".join(command))
+
     try:
         process = subprocess.run(
             command,
@@ -130,19 +158,23 @@ def run_dirb(
             check=False,
         )
     except subprocess.TimeoutExpired as exc:
+        logger.warning("DIRB enumeration timed out for target %s", target)
         raise RuntimeError(
             "DIRB directory enumeration timed out after 300 seconds."
         ) from exc
     except OSError as exc:
+        logger.error("Failed to execute DIRB: %s", exc)
         raise RuntimeError(
             f"Failed to execute DIRB: {exc}"
         ) from exc
 
-    results = sorted({
-        line.strip()
-        for line in process.stdout.splitlines()
-        if line.strip()
-    })
+    results = parse_dirb_results(process.stdout)
+
+    logger.info(
+        "DIRB finished with exit code %s and %s result(s)",
+        process.returncode,
+        len(results),
+    )
 
     return DirectoryResult(
         target=target,

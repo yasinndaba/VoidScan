@@ -36,7 +36,9 @@ Completed:
 * [x] Target validation
 * [x] Target management
 * [x] Configuration system
-* [x] Structured logging
+* [x] Structured logging and log viewer
+* [x] Startup dependency checks
+* [x] Settings and tool status panel
 * [x] Error handling
 * [x] Scan profiles
 * [x] Application configuration
@@ -53,10 +55,8 @@ Completed:
 * [x] Structured scan results
 * [x] Error handling
 * [x] Timeout handling
-
-Remaining enhancement:
-
-* [ ] Port and service extraction
+* [x] Port and service extraction
+* [x] Non-root TCP connect scan fallback
 
 ## Milestone 3 — Network Discovery
 
@@ -87,6 +87,8 @@ Completed:
 * [x] Subfinder integration
 * [x] Amass integration
 * [x] Wordlist validation
+* [x] URL and hostname target support
+* [x] Clean DIRB result parsing
 
 ## Milestone 5 — Reporting
 
@@ -101,6 +103,7 @@ Completed:
 * [x] Findings
 * [x] Unified reporting structure
 * [x] Report storage and management
+* [x] Unique timestamped JSON and HTML filenames
 
 ## Milestone 6 — Testing & Quality
 
@@ -115,15 +118,16 @@ Completed:
 * [x] Mocked subprocess/tool tests
 * [x] Error handling tests
 * [x] System Monitor tests
-* [x] 124 automated tests passing
+* [x] Shell/tool dependency checks
+* [x] Graceful Ctrl+C and EOF handling
+* [x] Manual full-workflow validation
+* [x] 173 automated tests passing
 
 Remaining:
 
-* [ ] Integration tests
-* [ ] Shell/tool dependency checks
+* [ ] Automated integration tests
 * [ ] Static analysis
 * [ ] Code quality improvements
-* [ ] Full application workflow testing
 
 ## Milestone 7 — CI/CD
 

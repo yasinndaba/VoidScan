@@ -4,6 +4,8 @@ from html import escape
 from pathlib import Path
 from typing import Any
 
+from voidscan.reporter import report_filename
+
 
 def _render_findings_section(findings: list[Any]) -> str:
     """Render serialized findings as a list of escaped HTML blocks."""
@@ -261,13 +263,7 @@ def save_html_report(
         exist_ok=True,
     )
 
-    scan_type = (
-        str(report.get("scan_type", "scan"))
-        .lower()
-        .replace(" ", "_")
-    )
-
-    filename = f"{scan_type}_report.html"
+    filename = report_filename(report, "html")
     output_path = output_directory / filename
 
     output_path.write_text(

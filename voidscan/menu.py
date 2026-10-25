@@ -2,17 +2,31 @@
 
 from rich.console import Console
 from rich.panel import Panel
-from rich.table import Table
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 from rich.prompt import Confirm, Prompt
+from rich.table import Table
+from rich.text import Text
 
+from voidscan import __version__
 from voidscan.config import Config
+from voidscan.dependencies import is_tool_installed
 from voidscan.targets import TargetManager
 from voidscan.scanners.nmap import run_nmap
-from voidscan.scanners.discovery import discover_hosts
+from voidscan.scanners.discovery import discover_hosts, network_host_count
 from voidscan.scanners.subdomains import enumerate_subdomains
-from voidscan.validators import is_valid_hostname
+from voidscan.validators import (
+    is_valid_hostname,
+    target_host,
+    to_web_url,
+)
 from voidscan.scanners.directories import enumerate_directories
-from urllib.parse import urlparse
 from voidscan.scanners.ip_info import get_ip_info
 from voidscan.scanners.system_monitor import get_system_monitor
 from voidscan.findings_nmap import analyze_nmap_result
@@ -31,6 +45,26 @@ from voidscan.html_reporter import save_html_report
 
 
 console = Console()
+
+# Result tables are capped so large scans stay readable. Full results are
+# always available in the saved JSON and HTML reports.
+MAX_RESULT_ROWS = 50
+
+
+def print_result_cap(
+    shown: int,
+    total: int,
+) -> None:
+    """Explain that only part of a large result set is displayed."""
+
+    if total <= shown:
+        return
+
+    console.print(
+        f"\n[dim]Showing the first {shown} of {total} results. "
+        "The full list is included in the saved report.[/dim]"
+    )
+
 
 
 def show_banner() -> None:
@@ -62,7 +96,7 @@ def show_main_menu() -> str:
     """Display the main menu and return the user's selection."""
 
     table = Table(
-        title="VoidScan v0.1.0",
+        title=f"VoidScan v{__version__}",
         show_header=False,
         border_style="cyan",
     )
@@ -145,7 +179,7 @@ def target_manager() -> None:
             except ValueError:
                 console.print(
                     "\n[bold red]✗ Invalid target.[/bold red] "
-                    "Enter a valid IP address or domain."
+                    "Enter a valid IP address, domain, or URL."
                 )
 
             console.input("\nPress Enter to continue...")
@@ -270,6 +304,7 @@ def network_scan() -> None:
         return
 
     target = targets[int(target_choice) - 1]
+    scan_target = target_host(target)
 
     show_banner()
 
@@ -329,7 +364,7 @@ def network_scan() -> None:
 
     console.print(
         Panel(
-            f"[bold cyan]Target:[/bold cyan] {target}\n"
+            f"[bold cyan]Target:[/bold cyan] {scan_target}\n"
             f"[bold cyan]Profile:[/bold cyan] {profile.title()}\n\n"
             "[yellow]Starting Nmap scan...[/yellow]",
             title="Network Scan",
@@ -337,7 +372,7 @@ def network_scan() -> None:
         )
     )
     try:
-        result = run_nmap(target, profile)
+        result = run_nmap(scan_target, profile)
 
         console.print()
 
@@ -363,7 +398,7 @@ def network_scan() -> None:
             if save_json or save_html:
                 report = create_report(
                     scan_type="Network Scan",
-                    target=target,
+                    target=scan_target,
                     result=result,
                     findings=findings,
                 )
@@ -458,11 +493,26 @@ def live_host_discovery() -> None:
     if not network:
         return
 
+    try:
+        total_hosts = network_host_count(network)
+    except ValueError as exc:
+        show_banner()
+        console.print(
+            Panel(
+                f"[bold red]{exc}[/bold red]",
+                title="Invalid Network",
+                border_style="red",
+            )
+        )
+        console.input("\nPress Enter to return to the menu...")
+        return
+
     show_banner()
 
     console.print(
         Panel(
-            f"[bold cyan]Network:[/bold cyan] {network}\n\n"
+            f"[bold cyan]Network:[/bold cyan] {network}\n"
+            f"[bold cyan]Hosts:[/bold cyan] {total_hosts}\n\n"
             "[yellow]Starting host discovery...[/yellow]",
             title="Live Host Discovery",
             border_style="cyan",
@@ -470,7 +520,28 @@ def live_host_discovery() -> None:
     )
 
     try:
-        result = discover_hosts(network)
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("{task.description}"),
+            BarColumn(),
+            MofNCompleteColumn(),
+            TimeElapsedColumn(),
+            console=console,
+            transient=True,
+        ) as progress:
+            task = progress.add_task(
+                "Scanning hosts",
+                total=total_hosts,
+            )
+
+            result = discover_hosts(
+                network,
+                on_progress=lambda completed, total: progress.update(
+                    task,
+                    completed=completed,
+                    total=total,
+                ),
+            )
 
     except ValueError as exc:
         console.print(
@@ -494,10 +565,13 @@ def live_host_discovery() -> None:
         table.add_column("#", style="bold cyan", width=6)
         table.add_column("Host", style="white")
 
-        for index, host in enumerate(result.hosts, start=1):
+        shown_hosts = result.hosts[:MAX_RESULT_ROWS]
+
+        for index, host in enumerate(shown_hosts, start=1):
             table.add_row(str(index), host)
 
         console.print(table)
+        print_result_cap(len(shown_hosts), len(result.hosts))
     else:
         console.print(
             Panel(
@@ -624,7 +698,7 @@ def subdomain_enumeration() -> None:
     if target_choice == "0":
         return
 
-    domain = targets[int(target_choice) - 1]
+    domain = target_host(targets[int(target_choice) - 1])
 
     if not is_valid_hostname(domain):
         console.print(
@@ -689,18 +763,31 @@ def subdomain_enumeration() -> None:
 
     show_banner()
 
+    engine_note = ""
+
+    if engine == "amass":
+        engine_note = (
+            "\n[yellow]Amass passive enumeration can take several "
+            "minutes. Press Ctrl+C to exit VoidScan.[/yellow]"
+        )
+
     console.print(
         Panel(
             f"[bold cyan]Domain:[/bold cyan] {domain}\n"
             f"[bold cyan]Engine:[/bold cyan] {engine.title()}\n\n"
-            "[yellow]Starting subdomain enumeration...[/yellow]",
+            "[yellow]Starting subdomain enumeration...[/yellow]"
+            f"{engine_note}",
             title="Subdomain Enumeration",
             border_style="cyan",
         )
     )
 
     try:
-        result = enumerate_subdomains(domain, engine)
+        with console.status(
+            f"[cyan]Running {engine.title()}, this may take a while...[/cyan]",
+            spinner="dots",
+        ):
+            result = enumerate_subdomains(domain, engine)
 
     except (RuntimeError, ValueError) as exc:
         console.print(
@@ -725,13 +812,19 @@ def subdomain_enumeration() -> None:
         result_table.add_column("#", style="bold cyan", width=6)
         result_table.add_column("Subdomain", style="white")
 
+        shown_subdomains = result.subdomains[:MAX_RESULT_ROWS]
+
         for index, subdomain in enumerate(
-            result.subdomains,
+            shown_subdomains,
             start=1,
         ):
             result_table.add_row(str(index), subdomain)
 
         console.print(result_table)
+        print_result_cap(
+            len(shown_subdomains),
+            len(result.subdomains),
+        )
 
         console.print(
             f"\n[bold green]Subdomains discovered:[/bold green] "
@@ -874,13 +967,13 @@ def directory_enumeration() -> None:
 
     target = targets[int(target_choice) - 1]
 
-    parsed = urlparse(target)
-
-    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+    try:
+        target = to_web_url(target)
+    except ValueError:
         console.print(
             Panel(
                 "[bold red]The selected target is not a valid web URL.[/bold red]\n\n"
-                "Directory enumeration requires a URL such as:\n"
+                "Directory enumeration requires a URL or host such as:\n"
                 "https://example.com",
                 title="Invalid Target",
                 border_style="red",
@@ -981,17 +1074,21 @@ def directory_enumeration() -> None:
     )
 
     try:
-        if wordlist is None:
-            result = enumerate_directories(
-                target,
-                engine,
-            )
-        else:
-            result = enumerate_directories(
-                target,
-                engine,
-                wordlist,
-            )
+        with console.status(
+            f"[cyan]Running {engine.upper()}, this may take a few minutes...[/cyan]",
+            spinner="dots",
+        ):
+            if wordlist is None:
+                result = enumerate_directories(
+                    target,
+                    engine,
+                )
+            else:
+                result = enumerate_directories(
+                    target,
+                    engine,
+                    wordlist,
+                )
 
     except (RuntimeError, ValueError) as exc:
         console.print(
@@ -1016,13 +1113,19 @@ def directory_enumeration() -> None:
         result_table.add_column("#", style="bold cyan", width=6)
         result_table.add_column("Result", style="white")
 
+        shown_results = result.results[:MAX_RESULT_ROWS]
+
         for index, item in enumerate(
-            result.results,
+            shown_results,
             start=1,
         ):
             result_table.add_row(str(index), item)
 
         console.print(result_table)
+        print_result_cap(
+            len(shown_results),
+            len(result.results),
+        )
 
         console.print(
             f"\n[bold green]Results discovered:[/bold green] "
@@ -1165,7 +1268,7 @@ def ip_information() -> None:
     if target_choice == "0":
         return
 
-    target = targets[int(target_choice) - 1]
+    target = target_host(targets[int(target_choice) - 1])
 
     show_banner()
 
@@ -1179,7 +1282,11 @@ def ip_information() -> None:
     )
 
     try:
-        result = get_ip_info(target)
+        with console.status(
+            "[cyan]Resolving target...[/cyan]",
+            spinner="dots",
+        ):
+            result = get_ip_info(target)
 
     except ValueError as exc:
         console.print(
@@ -1333,15 +1440,97 @@ def system_monitor() -> None:
     console.input("\nPress Enter to return to the menu...")
 
 
-def placeholder(module_name: str) -> None:
-    """Display a placeholder for an unimplemented module."""
+def view_logs() -> None:
+    """Display the most recent entries from the VoidScan log file."""
+
+    show_banner()
+
+    config = Config()
+    config.create_directories()
+
+    log_file = config.log_dir / "voidscan.log"
+
+    if not log_file.exists() or log_file.stat().st_size == 0:
+        console.print(
+            Panel(
+                "[yellow]No log entries have been recorded yet.[/yellow]\n\n"
+                f"[dim]Log file: {log_file}[/dim]",
+                title="View Logs",
+                border_style="yellow",
+            )
+        )
+
+        console.input("\nPress Enter to return to the menu...")
+        return
+
+    lines = log_file.read_text(
+        encoding="utf-8",
+        errors="replace",
+    ).splitlines()
+    preview = lines[-80:]
 
     console.print(
         Panel(
-            f"[bold]{module_name}[/bold]\n\n"
-            "[yellow]Module not implemented yet.[/yellow]\n\n"
-            "The scanner engine will be connected in a later milestone.",
-            title="VoidScan",
+            Text("\n".join(preview)),
+            title=(
+                f"View Logs — last {len(preview)} of "
+                f"{len(lines)} entries"
+            ),
+            border_style="cyan",
+        )
+    )
+
+    console.input("\nPress Enter to return to the menu...")
+
+
+def settings() -> None:
+    """Display the current VoidScan configuration and tool status."""
+
+    show_banner()
+
+    config = Config()
+    config.create_directories()
+
+    config_table = Table(
+        title="VoidScan Settings",
+        border_style="cyan",
+    )
+
+    config_table.add_column("Setting", style="bold cyan")
+    config_table.add_column("Value")
+
+    config_table.add_row("Version", __version__)
+    config_table.add_row("Data directory", str(config.data_dir))
+    config_table.add_row("Log directory", str(config.log_dir))
+    config_table.add_row("Report directory", str(config.report_dir))
+    config_table.add_row("Target file", str(config.target_file))
+
+    console.print(config_table)
+
+    tools_table = Table(
+        title="External Tools",
+        border_style="cyan",
+    )
+
+    tools_table.add_column("Tool", style="bold cyan")
+    tools_table.add_column("Status")
+
+    for tool in ("nmap", "ffuf", "dirb", "subfinder", "amass"):
+        installed = is_tool_installed(tool)
+        status = (
+            "[green]Installed[/green]"
+            if installed
+            else "[red]Missing[/red]"
+        )
+
+        tools_table.add_row(tool, status)
+
+    console.print(tools_table)
+
+    console.print(
+        Panel(
+            "[dim]Settings are currently read-only. Configuration and "
+            "targets live under the data directory shown above.[/dim]",
             border_style="yellow",
         )
     )
@@ -1379,10 +1568,10 @@ def run_menu() -> None:
             target_manager()
 
         elif choice == "8":
-            placeholder("View Logs")
+            view_logs()
 
         elif choice == "9":
-            placeholder("Settings")
+            settings()
 
         elif choice == "0":
             console.print("\n[bold green]Session ended. Goodbye.[/bold green]")

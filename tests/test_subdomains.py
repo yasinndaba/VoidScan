@@ -3,6 +3,7 @@ import pytest
 from voidscan.scanners.subdomains import (
     SUPPORTED_ENGINES,
     enumerate_subdomains,
+    parse_subdomains,
     run_amass,
     run_subfinder,
     tool_installed,
@@ -79,6 +80,8 @@ def test_amass(monkeypatch):
             "amass",
             "enum",
             "-passive",
+            "-timeout",
+            "5",
             "-d",
             "example.com",
         ]
@@ -98,6 +101,22 @@ def test_amass(monkeypatch):
     assert result.subdomains == [
         "api.example.com",
         "mail.example.com",
+    ]
+
+
+def test_parse_subdomains_filters_banner_lines():
+    output = (
+        "FQDN:\n"
+        "Session Scope\n"
+        "Example.COM\n"
+        "api.example.com.\n"
+        "not a hostname\n"
+        "[INF] enumeration started\n"
+    )
+
+    assert parse_subdomains(output) == [
+        "api.example.com",
+        "example.com",
     ]
 
 

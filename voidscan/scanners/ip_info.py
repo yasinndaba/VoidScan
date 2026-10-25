@@ -1,8 +1,12 @@
 """IP information engine for VoidScan."""
 
 import ipaddress
+import logging
 import socket
 from dataclasses import dataclass
+
+
+logger = logging.getLogger("voidscan.scanners.ip_info")
 
 
 @dataclass
@@ -48,12 +52,16 @@ def get_reverse_dns(address: str) -> str | None:
 def get_ip_info(target: str) -> IPInfoResult:
     """Collect basic information about an IP address."""
 
+    logger.info("Resolving IP information for target %s", target)
+
     address = resolve_target(target)
 
     try:
         ip = ipaddress.ip_address(address)
     except ValueError as exc:
         raise ValueError(f"Invalid IP address: {address}") from exc
+
+    logger.info("Resolved target %s to %s", target, address)
 
     return IPInfoResult(
         address=address,

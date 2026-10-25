@@ -144,3 +144,21 @@ def test_save_html_report(tmp_path: Path):
 
     assert "VoidScan Security Assessment Report" in content
     assert "192.168.1.10" in content
+
+
+def test_save_html_report_uses_unique_timestamped_names(tmp_path: Path):
+    report = {
+        "scan_type": "Network Scan",
+        "target": "127.0.0.1",
+        "timestamp": "2026-09-06T10:00:00+00:00",
+        "result": {"success": True},
+    }
+
+    first = save_html_report(report, tmp_path)
+    second = save_html_report(report, tmp_path)
+
+    assert first != second
+    assert first.name.startswith("network_scan_")
+    assert second.name.startswith("network_scan_")
+    assert first.suffix == ".html"
+    assert second.suffix == ".html"

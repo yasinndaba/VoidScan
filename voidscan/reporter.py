@@ -157,6 +157,20 @@ def create_report(
     }
 
 
+def report_filename(report: dict[str, Any], extension: str) -> str:
+    """Build a unique report filename for a report and extension."""
+
+    scan_type = (
+        str(report.get("scan_type", "scan"))
+        .strip()
+        .lower()
+        .replace(" ", "_")
+    )
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
+
+    return f"{scan_type}_{timestamp}.{extension.lstrip('.')}"
+
+
 def save_json_report(
     report: dict[str, Any],
     output_directory: Path,
@@ -165,10 +179,7 @@ def save_json_report(
 
     output_directory.mkdir(parents=True, exist_ok=True)
 
-    scan_type = report["scan_type"].lower().replace(" ", "_")
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-
-    filename = f"{scan_type}_{timestamp}.json"
+    filename = report_filename(report, "json")
     output_path = output_directory / filename
 
     output_path.write_text(
