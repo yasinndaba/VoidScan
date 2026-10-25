@@ -11,6 +11,10 @@ Requires-Dist: rich>=13.0
 Requires-Dist: tomli>=2.0; python_version < "3.11"
 Provides-Extra: test
 Requires-Dist: pytest>=8.0; extra == "test"
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0; extra == "dev"
+Requires-Dist: mypy>=1.11; extra == "dev"
+Requires-Dist: ruff>=0.9; extra == "dev"
 Dynamic: license-file
 
 # VoidScan
@@ -265,9 +269,20 @@ read from the main menu with **View Logs**.
 
 ## Testing
 
+Install the development extras, then run the same checks used before a
+commit:
+
 ```bash
+pip install -e ".[dev]"
 pytest -q
+ruff check voidscan tests
+ruff format --check voidscan tests
+mypy
 ```
+
+Ruff and mypy are configured in `pyproject.toml`, so the checks need no
+extra flags. The test suite runs without network access and does not
+require the external tools.
 
 ## Roadmap
 

@@ -3,5 +3,10 @@ rich>=13.0
 [:python_version < "3.11"]
 tomli>=2.0
 
+[dev]
+pytest>=8.0
+mypy>=1.11
+ruff>=0.9
+
 [test]
 pytest>=8.0

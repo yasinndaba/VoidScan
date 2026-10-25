@@ -2,7 +2,6 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-
 from voidscan.cli import main
 
 
@@ -33,7 +32,7 @@ def isolate_cli(monkeypatch, tmp_path: Path) -> MagicMock:
     )
     monkeypatch.setattr(
         "voidscan.cli.get_missing_tools",
-        lambda: [],
+        list,
     )
 
     return config

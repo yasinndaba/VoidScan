@@ -1,16 +1,17 @@
 """Reporting utilities for VoidScan."""
 
 import json
+from collections.abc import Sequence
 from dataclasses import asdict, is_dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Sequence, cast
+from typing import Any, cast
+
 from rich.console import Console
 from rich.table import Table
 
 from voidscan import __version__
 from voidscan.findings import Finding, Severity, merge_evidence
-
 
 REPORT_SCHEMA_VERSION = 1
 
@@ -24,8 +25,7 @@ SEVERITY_ORDER = (
 )
 
 SEVERITY_RANK = {
-    severity.value: index
-    for index, severity in enumerate(SEVERITY_ORDER)
+    severity.value: index for index, severity in enumerate(SEVERITY_ORDER)
 }
 
 SEVERITY_COLORS = {
@@ -54,9 +54,7 @@ def _serialize_finding(
     if isinstance(finding, dict):
         return dict(finding)
 
-    raise TypeError(
-        "Findings must be Finding instances or dictionaries."
-    )
+    raise TypeError("Findings must be Finding instances or dictionaries.")
 
 
 def _deduplicate_serialized(
@@ -105,11 +103,7 @@ def _severity_counts(
         if severity in counts:
             counts[severity] += 1
 
-    return {
-        severity: count
-        for severity, count in counts.items()
-        if count
-    }
+    return {severity: count for severity, count in counts.items() if count}
 
 
 def _evidence_preview(evidence: str, limit: int = 3) -> str:
@@ -123,9 +117,7 @@ def _evidence_preview(evidence: str, limit: int = 3) -> str:
     if len(lines) <= limit:
         return "\n".join(lines)
 
-    return "\n".join(
-        lines[:limit] + [f"… (+{len(lines) - limit} more)"]
-    )
+    return "\n".join([*lines[:limit], f"… (+{len(lines) - limit} more)"])
 
 
 def _render_findings_table(
@@ -189,10 +181,7 @@ def create_report(
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "result": result_data,
         "findings": _deduplicate_serialized(
-            [
-                _serialize_finding(finding)
-                for finding in (findings or [])
-            ]
+            [_serialize_finding(finding) for finding in (findings or [])]
         ),
     }
 
@@ -201,10 +190,7 @@ def report_filename(report: dict[str, Any], extension: str) -> str:
     """Build a unique report filename for a report and extension."""
 
     scan_type = (
-        str(report.get("scan_type", "scan"))
-        .strip()
-        .lower()
-        .replace(" ", "_")
+        str(report.get("scan_type", "scan")).strip().lower().replace(" ", "_")
     )
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
 
@@ -229,6 +215,7 @@ def save_json_report(
 
     return output_path
 
+
 def save_scan_report(
     scan_type: str,
     target: str,
@@ -249,6 +236,7 @@ def save_scan_report(
         report=report,
         output_directory=output_directory,
     )
+
 
 def build_report_summary(
     report: dict[str, Any],
@@ -287,17 +275,14 @@ def build_report_summary(
         summary["findings_count"] = len(findings)
 
         counts = _severity_counts(
-            [
-                finding
-                for finding in findings
-                if isinstance(finding, dict)
-            ]
+            [finding for finding in findings if isinstance(finding, dict)]
         )
 
         if counts:
             summary["findings_by_severity"] = counts
 
     return summary
+
 
 def display_report_summary(report: dict[str, Any]) -> None:
     """Display a concise report summary in the terminal."""
@@ -369,10 +354,7 @@ def display_findings(
 
     console = Console()
     serialized = _deduplicate_serialized(
-        [
-            _serialize_finding(finding)
-            for finding in findings
-        ]
+        [_serialize_finding(finding) for finding in findings]
     )
 
     if not serialized:

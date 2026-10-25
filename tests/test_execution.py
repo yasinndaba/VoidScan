@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 import pytest
 from rich.console import Console
-
 from voidscan.errors import ScanCancelled
 from voidscan.execution import ScanContext, run_with_progress
 
@@ -92,13 +91,13 @@ def test_ctrl_c_cancels_the_scan():
             "voidscan.execution.Prompt.ask",
             return_value="cancel",
         ),
+        pytest.raises(ScanCancelled),
     ):
-        with pytest.raises(ScanCancelled):
-            run_with_progress(
-                "Testing",
-                operation,
-                console=make_console(),
-            )
+        run_with_progress(
+            "Testing",
+            operation,
+            console=make_console(),
+        )
 
     assert started.is_set()
 
@@ -128,13 +127,13 @@ def test_ctrl_c_can_exit_the_application():
             "voidscan.execution.Prompt.ask",
             return_value="exit",
         ),
+        pytest.raises(KeyboardInterrupt),
     ):
-        with pytest.raises(KeyboardInterrupt):
-            run_with_progress(
-                "Testing",
-                operation,
-                console=make_console(),
-            )
+        run_with_progress(
+            "Testing",
+            operation,
+            console=make_console(),
+        )
 
 
 def test_scan_context_cancel_sets_event():

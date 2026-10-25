@@ -1,5 +1,4 @@
 import pytest
-
 from voidscan.errors import ScanTimeout
 from voidscan.process import CommandResult
 from voidscan.scanners.subdomains import (
@@ -54,11 +53,7 @@ def test_subfinder(monkeypatch):
 
         return make_result(
             command,
-            (
-                "www.example.com\n"
-                "mail.example.com\n"
-                "www.example.com\n"
-            ),
+            ("www.example.com\nmail.example.com\nwww.example.com\n"),
         )
 
     monkeypatch.setattr(
@@ -105,10 +100,7 @@ def test_amass(monkeypatch):
 
         return make_result(
             command,
-            (
-                "api.example.com\n"
-                "mail.example.com\n"
-            ),
+            ("api.example.com\nmail.example.com\n"),
         )
 
     monkeypatch.setattr(
@@ -135,11 +127,7 @@ def test_amass_timeout_returns_partial_results(monkeypatch):
         raise ScanTimeout(
             "Command timed out",
             timeout=kwargs["timeout"],
-            stdout=(
-                "FQDN:\n"
-                "api.example.com\n"
-                "mail.example.com\n"
-            ),
+            stdout=("FQDN:\napi.example.com\nmail.example.com\n"),
             stderr="[INF] still starting\n",
             return_code=-15,
         )

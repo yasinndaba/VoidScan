@@ -4,12 +4,11 @@ import logging
 import os
 import shutil
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 from voidscan.errors import ScanTimeout
 from voidscan.process import run_command
-
 
 logger = logging.getLogger("voidscan.scanners.nmap")
 
@@ -61,9 +60,7 @@ def build_nmap_command(target: str, profile: str) -> list[str]:
         raise ValueError(f"Unknown scan profile: {profile}")
 
     profiles = (
-        SCAN_PROFILES
-        if has_root_privileges()
-        else NON_ROOT_SCAN_PROFILES
+        SCAN_PROFILES if has_root_privileges() else NON_ROOT_SCAN_PROFILES
     )
 
     return ["nmap", *profiles[profile], target]
@@ -106,9 +103,7 @@ def run_nmap(
         ) from exc
     except OSError as exc:
         logger.error("Failed to execute Nmap: %s", exc)
-        raise RuntimeError(
-            f"Failed to execute Nmap: {exc}"
-        ) from exc
+        raise RuntimeError(f"Failed to execute Nmap: {exc}") from exc
 
     output = process.stdout
 

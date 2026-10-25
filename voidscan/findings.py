@@ -1,8 +1,8 @@
 """Security finding models for VoidScan."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import Sequence
 
 
 class Severity(str, Enum):

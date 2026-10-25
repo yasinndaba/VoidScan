@@ -8,11 +8,10 @@ import signal
 import subprocess
 import threading
 import time
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Callable, Sequence
 
 from voidscan.errors import ScanCancelled, ScanTimeout
-
 
 logger = logging.getLogger("voidscan.process")
 
@@ -66,7 +65,7 @@ def _signal_process_group(
 
 
 def _terminate_process(process: subprocess.Popen[str]) -> None:
-    """Terminate a child process and its group within a bounded grace period."""
+    """Terminate a child process and its group within a grace period."""
 
     if process.poll() is not None:
         return
@@ -135,19 +134,24 @@ def run_command(
     command = list(command)
     logger.info("Running command: %s", " ".join(command))
 
-    popen_kwargs: dict[str, object] = {
-        "stdout": subprocess.PIPE,
-        "stderr": subprocess.PIPE,
-        "text": True,
-    }
-
-    if os.name == "posix":
-        # A separate session lets cancellation terminate the whole process
-        # group, including any helpers spawned by the external tool.
-        popen_kwargs["start_new_session"] = True
-
     try:
-        process = subprocess.Popen(command, **popen_kwargs)
+        if os.name == "posix":
+            # A separate session lets cancellation terminate the whole
+            # process group, including any helpers spawned by the tool.
+            process = subprocess.Popen(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                start_new_session=True,
+            )
+        else:
+            process = subprocess.Popen(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
     except OSError:
         logger.exception("Failed to start command: %s", " ".join(command))
         raise
@@ -174,7 +178,7 @@ def run_command(
                     timeout=poll_interval,
                 )
                 break
-            except subprocess.TimeoutExpired:
+            except subprocess.TimeoutExpired as exc:
                 elapsed = time.monotonic() - started_at
 
                 if on_heartbeat is not None:
@@ -189,8 +193,8 @@ def run_command(
                     " ".join(command),
                 )
                 _terminate_process(process)
-                partial_stdout, partial_stderr = (
-                    _collect_remaining_output(process)
+                partial_stdout, partial_stderr = _collect_remaining_output(
+                    process
                 )
 
                 raise ScanTimeout(
@@ -204,16 +208,14 @@ def run_command(
                         if process.returncode is not None
                         else -1
                     ),
-                )
+                ) from exc
 
         return CommandResult(
             command=command,
             stdout=stdout or "",
             stderr=stderr or "",
             return_code=(
-                process.returncode
-                if process.returncode is not None
-                else -1
+                process.returncode if process.returncode is not None else -1
             ),
         )
     finally:

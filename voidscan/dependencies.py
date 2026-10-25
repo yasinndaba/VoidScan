@@ -2,7 +2,6 @@
 
 import shutil
 
-
 REQUIRED_TOOLS = (
     "nmap",
     "ffuf",
@@ -21,8 +20,4 @@ def is_tool_installed(tool: str) -> bool:
 def get_missing_tools() -> list[str]:
     """Return external tools that are not installed."""
 
-    return [
-        tool
-        for tool in REQUIRED_TOOLS
-        if not is_tool_installed(tool)
-    ]
+    return [tool for tool in REQUIRED_TOOLS if not is_tool_installed(tool)]

@@ -4,14 +4,9 @@ import ipaddress
 import re
 from urllib.parse import urlparse
 
+_LABEL_PATTERN = re.compile(r"^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$")
 
-_LABEL_PATTERN = re.compile(
-    r"^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$"
-)
-
-_TLD_PATTERN = re.compile(
-    r"^(?:[a-zA-Z]{2,63}|xn--[a-zA-Z0-9-]{1,59})$"
-)
+_TLD_PATTERN = re.compile(r"^(?:[a-zA-Z]{2,63}|xn--[a-zA-Z0-9-]{1,59})$")
 
 WEB_SCHEMES = {"http", "https"}
 

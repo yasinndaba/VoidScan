@@ -1,6 +1,7 @@
 # VoidScan Roadmap
 
-Current baseline: **v0.2.0**, **215 tests passing**, Linux supported.
+Current baseline: **v0.2.0**, **215 tests passing**, Linux supported. Ruff and
+mypy pass on the current tree.
 
 Milestones 0–5 are complete. The v0.2 reliability milestone is complete;
 Milestone 6 (Testing & Quality) is in progress.
@@ -142,6 +143,8 @@ Exit criteria:
 
 ### v0.3 — Quality gate
 
+Status: In progress — E3 and E4 complete; A4, B4, E1–E2, and E5–E7 remain.
+
 Scope: A4, B4, E1–E7.
 
 Exit criteria:
@@ -150,6 +153,11 @@ Exit criteria:
 - CI is green on Python 3.10–3.13
 - Coverage, lint, types, packaging, and integration tests are enforced
 - A first scan requires explicit authorization confirmation
+
+Progress:
+
+- [x] E3 — Ruff check and format pass locally
+- [x] E4 — Mypy passes on `voidscan/` with strict untyped-definition checks
 
 ### v0.4 — Insight and polish
 

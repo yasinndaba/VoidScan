@@ -33,13 +33,9 @@ def run_network_scan(tmp_path: Path, output: str) -> None:
         patch("voidscan.menu.show_banner"),
     ):
         mock_config.return_value.report_dir = tmp_path
-        mock_config.return_value.target_file = (
-            tmp_path / "targets.txt"
-        )
+        mock_config.return_value.target_file = tmp_path / "targets.txt"
 
-        mock_manager.return_value.list_targets.return_value = [
-            "127.0.0.1"
-        ]
+        mock_manager.return_value.list_targets.return_value = ["127.0.0.1"]
 
         mock_prompt.side_effect = [
             "1",
@@ -79,7 +75,7 @@ def test_network_scan_report_includes_findings(tmp_path: Path):
     )
 
     report = json.loads(
-        (list(tmp_path.glob("network_scan_*.json"))[0]).read_text(
+        next(tmp_path.glob("network_scan_*.json")).read_text(
             encoding="utf-8",
         )
     )
@@ -99,7 +95,7 @@ def test_network_scan_saves_empty_findings_when_clean(tmp_path: Path):
     run_network_scan(tmp_path, "All 100 scanned ports are closed")
 
     report = json.loads(
-        (list(tmp_path.glob("network_scan_*.json"))[0]).read_text(
+        next(tmp_path.glob("network_scan_*.json")).read_text(
             encoding="utf-8",
         )
     )
@@ -115,9 +111,7 @@ def test_network_scan_displays_findings(tmp_path: Path):
 
     findings = mock_display.call_args.args[0]
 
-    assert [finding.title for finding in findings] == [
-        "SSH Service Detected"
-    ]
+    assert [finding.title for finding in findings] == ["SSH Service Detected"]
 
 
 def test_network_scan_saves_html_report_with_findings(tmp_path: Path):
@@ -125,9 +119,9 @@ def test_network_scan_saves_html_report_with_findings(tmp_path: Path):
 
     run_network_scan(tmp_path, "22/tcp open ssh")
 
-    html = (
-        list(tmp_path.glob("network_scan_*.html"))[0]
-    ).read_text(encoding="utf-8")
+    html = next(tmp_path.glob("network_scan_*.html")).read_text(
+        encoding="utf-8"
+    )
 
     assert "Security Findings (1)" in html
     assert "SSH Service Detected" in html

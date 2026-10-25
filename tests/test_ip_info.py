@@ -2,7 +2,6 @@ import socket
 from unittest.mock import patch
 
 import pytest
-
 from voidscan.scanners.ip_info import (
     get_ip_info,
     get_reverse_dns,

@@ -48,11 +48,7 @@ def test_analyze_nmap_detects_multiple_services():
     result = NmapResult(
         target="192.168.1.10",
         command=["nmap", "192.168.1.10"],
-        output=(
-            "22/tcp open ssh\n"
-            "80/tcp open http\n"
-            "443/tcp open https"
-        ),
+        output=("22/tcp open ssh\n80/tcp open http\n443/tcp open https"),
         return_code=0,
         success=True,
     )
@@ -140,9 +136,7 @@ def test_analyze_nmap_escalates_risky_services():
 
     findings = analyze_nmap_result(result)
 
-    severities = {
-        finding.title: finding.severity for finding in findings
-    }
+    severities = {finding.title: finding.severity for finding in findings}
 
     assert severities["Telnet Service Detected"] == Severity.HIGH
     assert severities["Database Service Detected"] == Severity.MEDIUM
@@ -181,6 +175,8 @@ def test_analyze_nmap_handles_open_filtered_ports():
 
     assert len(findings) == 1
     assert "open|filtered" in findings[0].evidence
+
+
 def test_analyze_nmap_detects_https_without_http():
     """Test that HTTPS does not incorrectly produce an HTTP finding."""
 
@@ -204,10 +200,7 @@ def test_analyze_nmap_uses_specific_line_as_evidence():
     result = NmapResult(
         target="192.168.1.10",
         command=["nmap", "192.168.1.10"],
-        output=(
-            "22/tcp open ssh\n"
-            "80/tcp open http"
-        ),
+        output=("22/tcp open ssh\n80/tcp open http"),
         return_code=0,
         success=True,
     )

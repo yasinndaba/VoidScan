@@ -1,4 +1,5 @@
 from collections import namedtuple
+from contextlib import suppress
 from unittest.mock import mock_open, patch
 
 from voidscan.scanners.system_monitor import (
@@ -9,10 +10,7 @@ from voidscan.scanners.system_monitor import (
 
 
 def test_get_memory_info():
-    meminfo = (
-        "MemTotal:       16384000 kB\n"
-        "MemAvailable:    8192000 kB\n"
-    )
+    meminfo = "MemTotal:       16384000 kB\nMemAvailable:    8192000 kB\n"
 
     with patch(
         "builtins.open",
@@ -87,17 +85,13 @@ def test_get_system_monitor(
 
 
 def test_memory_info_handles_invalid_lines():
-    meminfo = (
-        "Invalid line\n"
-        "MemTotal: invalid kB\n"
-        "MemAvailable: 8192000 kB\n"
-    )
+    meminfo = "Invalid line\nMemTotal: invalid kB\nMemAvailable: 8192000 kB\n"
 
-    with patch(
-        "builtins.open",
-        mock_open(read_data=meminfo),
+    with (
+        patch(
+            "builtins.open",
+            mock_open(read_data=meminfo),
+        ),
+        suppress(ValueError),
     ):
-        try:
-            get_memory_info()
-        except ValueError:
-            pass
+        get_memory_info()

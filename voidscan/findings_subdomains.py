@@ -22,8 +22,7 @@ def analyze_subdomain_result(result: SubdomainResult) -> list[Finding]:
 
     if result.timed_out:
         description += (
-            " The enumeration timed out, so these results may be "
-            "incomplete."
+            " The enumeration timed out, so these results may be incomplete."
         )
 
     findings.append(

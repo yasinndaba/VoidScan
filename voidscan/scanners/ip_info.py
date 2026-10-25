@@ -5,7 +5,6 @@ import logging
 import socket
 from dataclasses import dataclass
 
-
 logger = logging.getLogger("voidscan.scanners.ip_info")
 
 

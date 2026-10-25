@@ -73,11 +73,7 @@ def test_merge_evidence_keeps_unique_lines_in_order():
         "80/tcp open http\n443/tcp open https",
     )
 
-    assert merged == (
-        "22/tcp open ssh\n"
-        "80/tcp open http\n"
-        "443/tcp open https"
-    )
+    assert merged == ("22/tcp open ssh\n80/tcp open http\n443/tcp open https")
 
 
 def test_deduplicate_findings_merges_evidence():
@@ -89,9 +85,7 @@ def test_deduplicate_findings_merges_evidence():
     deduplicated = deduplicate_findings(findings)
 
     assert len(deduplicated) == 1
-    assert deduplicated[0].evidence == (
-        "22/tcp open ssh\n2222/tcp open ssh"
-    )
+    assert deduplicated[0].evidence == ("22/tcp open ssh\n2222/tcp open ssh")
 
 
 def test_deduplicate_findings_keeps_distinct_findings():

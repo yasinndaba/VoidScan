@@ -21,9 +21,7 @@ def _render_findings_section(findings: list[Any]) -> str:
         title = escape(str(finding.get("title", "Unnamed finding")))
         description = escape(str(finding.get("description", "")))
         evidence = escape(str(finding.get("evidence", "")))
-        recommendation = escape(
-            str(finding.get("recommendation", ""))
-        )
+        recommendation = escape(str(finding.get("recommendation", "")))
 
         blocks.append(
             f"""
@@ -81,9 +79,7 @@ def generate_html_report(report: dict[str, Any]) -> str:
             status = "Failed"
             status_class = "failed"
 
-    result_json = escape(
-        str(result)
-    )
+    result_json = escape(str(result))
 
     return f"""<!DOCTYPE html>
 <html lang="en">

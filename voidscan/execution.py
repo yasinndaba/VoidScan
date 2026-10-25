@@ -5,9 +5,10 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from queue import Queue
-from typing import Callable, Generic, TypeVar
+from typing import TypeVar
 
 from rich.console import Console, Group
 from rich.live import Live
@@ -17,7 +18,6 @@ from rich.text import Text
 
 from voidscan.errors import ScanCancelled
 from voidscan.process import terminate_active_processes
-
 
 logger = logging.getLogger("voidscan.execution")
 
@@ -137,7 +137,7 @@ def run_with_progress(
     def worker() -> None:
         try:
             outcomes.put((operation(context), None))
-        except BaseException as exc:  # noqa: BLE001 - forwarded to caller
+        except BaseException as exc:
             outcomes.put((None, exc))
 
     thread = threading.Thread(

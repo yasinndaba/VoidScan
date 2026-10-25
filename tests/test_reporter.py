@@ -5,7 +5,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
 from voidscan.findings import Finding, Severity
 from voidscan.reporter import (
     REPORT_SCHEMA_VERSION,
@@ -364,9 +363,7 @@ def test_display_report_summary():
         },
     }
 
-    with patch(
-        "voidscan.reporter.Console"
-    ) as mock_console:
+    with patch("voidscan.reporter.Console") as mock_console:
         display_report_summary(report)
 
     mock_console.return_value.print.assert_called_once()
@@ -384,9 +381,7 @@ def test_display_report_summary_prints_a_single_table():
         ],
     }
 
-    with patch(
-        "voidscan.reporter.Console"
-    ) as mock_console:
+    with patch("voidscan.reporter.Console") as mock_console:
         display_report_summary(report)
 
     # The summary carries the counts; the detailed table is shown once by

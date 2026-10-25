@@ -1,5 +1,4 @@
 import pytest
-
 from voidscan.validators import (
     is_valid_hostname,
     is_valid_ip,

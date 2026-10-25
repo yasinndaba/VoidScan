@@ -1,7 +1,6 @@
 import threading
 
 import pytest
-
 from voidscan.errors import ScanCancelled
 from voidscan.scanners.discovery import (
     MAX_HOSTS,
@@ -169,9 +168,7 @@ def test_discover_hosts_reports_progress(monkeypatch):
 
     result = discover_hosts(
         "192.168.1.0/30",
-        on_progress=lambda completed, total: events.append(
-            (completed, total)
-        ),
+        on_progress=lambda completed, total: events.append((completed, total)),
     )
 
     assert events == [(1, 2), (2, 2)]

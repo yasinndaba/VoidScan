@@ -3,6 +3,7 @@
 import argparse
 import os
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 from rich.console import Console
@@ -26,7 +27,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser(
         prog="voidscan",
-        description="Authorized reconnaissance and security assessment toolkit.",
+        description=(
+            "Authorized reconnaissance and security assessment toolkit."
+        ),
     )
 
     parser.add_argument(
@@ -40,8 +43,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         metavar="PATH",
         help=(
-            "Load configuration from PATH instead of "
-            "~/.voidscan/config.toml."
+            "Load configuration from PATH instead of ~/.voidscan/config.toml."
         ),
     )
 
@@ -78,18 +80,17 @@ def _apply_cli_overrides(
     if args.data_dir is not None:
         config = with_data_dir(config, args.data_dir)
 
-    overrides = {}
-
     if args.log_dir is not None:
-        overrides["log_dir"] = Path(args.log_dir).expanduser()
+        config = replace(
+            config,
+            log_dir=Path(args.log_dir).expanduser(),
+        )
 
     if args.report_dir is not None:
-        overrides["report_dir"] = Path(args.report_dir).expanduser()
-
-    if overrides:
-        from dataclasses import replace
-
-        config = replace(config, **overrides)
+        config = replace(
+            config,
+            report_dir=Path(args.report_dir).expanduser(),
+        )
 
     return config
 

@@ -1,5 +1,4 @@
 import pytest
-
 from voidscan.targets import Target
 
 

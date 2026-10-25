@@ -4,15 +4,17 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 import threading
+from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, cast
 
-try:  # Python 3.11+
+if sys.version_info >= (3, 11):
     import tomllib
-except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
-    import tomli as tomllib
+else:  # pragma: no cover - Python 3.10 fallback
+    import tomli as tomllib  # type: ignore[import-not-found]
 
 
 logger = logging.getLogger("voidscan.config")
@@ -88,7 +90,7 @@ def _read_toml(
 
     try:
         with path.open("rb") as config_file:
-            return tomllib.load(config_file)
+            return cast(dict[str, Any], tomllib.load(config_file))
     except tomllib.TOMLDecodeError as exc:
         warnings.append(
             f"Could not parse {path}: {exc}. Using default settings."
@@ -298,23 +300,47 @@ def with_data_dir(config: Config, data_dir: Path) -> Config:
     )
 
 
-_ENV_PATH_OVERRIDES = {
-    "VOIDSCAN_DATA_DIR": "data_dir",
-    "VOIDSCAN_LOG_DIR": "log_dir",
-    "VOIDSCAN_REPORT_DIR": "report_dir",
-    "VOIDSCAN_TARGET_FILE": "target_file",
-}
+def _env_path(
+    environ: Mapping[str, str],
+    variable: str,
+) -> Path | None:
+    """Return a path from an environment variable, if it is set."""
 
-_ENV_INT_OVERRIDES = {
-    "VOIDSCAN_NMAP_TIMEOUT": "nmap_timeout",
-    "VOIDSCAN_FFUF_TIMEOUT": "ffuf_timeout",
-    "VOIDSCAN_DIRB_TIMEOUT": "dirb_timeout",
-    "VOIDSCAN_SUBFINDER_TIMEOUT": "subfinder_timeout",
-    "VOIDSCAN_AMASS_TIMEOUT": "amass_timeout",
-    "VOIDSCAN_MAX_HOSTS": "max_hosts",
-    "VOIDSCAN_DISCOVERY_WORKERS": "discovery_workers",
-    "VOIDSCAN_PING_TIMEOUT": "ping_timeout",
-}
+    value = environ.get(variable)
+
+    if not value:
+        return None
+
+    return Path(value).expanduser()
+
+
+def _env_int(
+    environ: Mapping[str, str],
+    variable: str,
+    warnings: list[str],
+) -> int | None:
+    """Return a positive integer from the environment, if valid."""
+
+    value = environ.get(variable)
+
+    if value is None or value == "":
+        return None
+
+    try:
+        parsed = int(value)
+    except ValueError:
+        warnings.append(
+            f"Environment variable {variable} must be an integer. Ignoring it."
+        )
+        return None
+
+    if parsed < 1:
+        warnings.append(
+            f"Environment variable {variable} must be at least 1. Ignoring it."
+        )
+        return None
+
+    return parsed
 
 
 def apply_env_overrides(
@@ -327,53 +353,73 @@ def apply_env_overrides(
     warnings = warnings if warnings is not None else []
     environ = environ if environ is not None else os.environ
 
-    if environ.get("VOIDSCAN_DATA_DIR"):
-        config = with_data_dir(
-            config,
-            Path(environ["VOIDSCAN_DATA_DIR"]),
-        )
+    data_dir = _env_path(environ, "VOIDSCAN_DATA_DIR")
 
-    path_overrides: dict[str, Path] = {}
+    if data_dir is not None:
+        config = with_data_dir(config, data_dir)
 
-    for variable, attribute in _ENV_PATH_OVERRIDES.items():
-        value = environ.get(variable)
+    log_dir = _env_path(environ, "VOIDSCAN_LOG_DIR")
 
-        if not value:
-            continue
+    if log_dir is not None:
+        config = replace(config, log_dir=log_dir)
 
-        path_overrides[attribute] = Path(value).expanduser()
+    report_dir = _env_path(environ, "VOIDSCAN_REPORT_DIR")
 
-    if path_overrides:
-        config = replace(config, **path_overrides)
+    if report_dir is not None:
+        config = replace(config, report_dir=report_dir)
 
-    int_overrides: dict[str, int] = {}
+    target_file = _env_path(environ, "VOIDSCAN_TARGET_FILE")
 
-    for variable, attribute in _ENV_INT_OVERRIDES.items():
-        value = environ.get(variable)
+    if target_file is not None:
+        config = replace(config, target_file=target_file)
 
-        if value is None or value == "":
-            continue
+    nmap_timeout = _env_int(environ, "VOIDSCAN_NMAP_TIMEOUT", warnings)
 
-        try:
-            parsed = int(value)
-        except ValueError:
-            warnings.append(
-                f"Environment variable {variable} must be an integer. "
-                "Ignoring it."
-            )
-            continue
+    if nmap_timeout is not None:
+        config = replace(config, nmap_timeout=nmap_timeout)
 
-        if parsed < 1:
-            warnings.append(
-                f"Environment variable {variable} must be at least 1. "
-                "Ignoring it."
-            )
-            continue
+    ffuf_timeout = _env_int(environ, "VOIDSCAN_FFUF_TIMEOUT", warnings)
 
-        int_overrides[attribute] = parsed
+    if ffuf_timeout is not None:
+        config = replace(config, ffuf_timeout=ffuf_timeout)
 
-    if int_overrides:
-        config = replace(config, **int_overrides)
+    dirb_timeout = _env_int(environ, "VOIDSCAN_DIRB_TIMEOUT", warnings)
+
+    if dirb_timeout is not None:
+        config = replace(config, dirb_timeout=dirb_timeout)
+
+    subfinder_timeout = _env_int(
+        environ,
+        "VOIDSCAN_SUBFINDER_TIMEOUT",
+        warnings,
+    )
+
+    if subfinder_timeout is not None:
+        config = replace(config, subfinder_timeout=subfinder_timeout)
+
+    amass_timeout = _env_int(environ, "VOIDSCAN_AMASS_TIMEOUT", warnings)
+
+    if amass_timeout is not None:
+        config = replace(config, amass_timeout=amass_timeout)
+
+    max_hosts = _env_int(environ, "VOIDSCAN_MAX_HOSTS", warnings)
+
+    if max_hosts is not None:
+        config = replace(config, max_hosts=max_hosts)
+
+    discovery_workers = _env_int(
+        environ,
+        "VOIDSCAN_DISCOVERY_WORKERS",
+        warnings,
+    )
+
+    if discovery_workers is not None:
+        config = replace(config, discovery_workers=discovery_workers)
+
+    ping_timeout = _env_int(environ, "VOIDSCAN_PING_TIMEOUT", warnings)
+
+    if ping_timeout is not None:
+        config = replace(config, ping_timeout=ping_timeout)
 
     return config
 

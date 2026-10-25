@@ -4,7 +4,6 @@ import os
 import platform
 import shutil
 import socket
-import time
 from dataclasses import dataclass
 
 
@@ -31,7 +30,7 @@ def get_memory_info() -> tuple[float, float]:
     available = 0
 
     try:
-        with open("/proc/meminfo", "r") as file:
+        with open("/proc/meminfo") as file:
             for line in file:
                 parts = line.split()
 
@@ -45,11 +44,13 @@ def get_memory_info() -> tuple[float, float]:
                     available = int(parts[1]) * 1024
 
     except OSError as exc:
-        raise RuntimeError("Unable to read system memory information.") from exc
+        raise RuntimeError(
+            "Unable to read system memory information."
+        ) from exc
 
     return (
-        round(total / (1024 ** 3), 2),
-        round(available / (1024 ** 3), 2),
+        round(total / (1024**3), 2),
+        round(available / (1024**3), 2),
     )
 
 
@@ -57,7 +58,7 @@ def get_uptime() -> float:
     """Return system uptime in seconds."""
 
     try:
-        with open("/proc/uptime", "r") as file:
+        with open("/proc/uptime") as file:
             return float(file.readline().split()[0])
     except (OSError, ValueError, IndexError) as exc:
         raise RuntimeError("Unable to read system uptime.") from exc
@@ -78,7 +79,7 @@ def get_system_monitor() -> SystemMonitorResult:
         cpu_count=os.cpu_count() or 1,
         memory_total_gb=memory_total,
         memory_available_gb=memory_available,
-        disk_total_gb=round(disk.total / (1024 ** 3), 2),
-        disk_free_gb=round(disk.free / (1024 ** 3), 2),
+        disk_total_gb=round(disk.total / (1024**3), 2),
+        disk_free_gb=round(disk.free / (1024**3), 2),
         uptime_seconds=get_uptime(),
     )

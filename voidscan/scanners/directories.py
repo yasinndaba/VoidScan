@@ -4,13 +4,12 @@ import logging
 import re
 import shutil
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
 
 from voidscan.errors import ScanTimeout
 from voidscan.process import run_command
-
 
 logger = logging.getLogger("voidscan.scanners.directories")
 
@@ -110,15 +109,15 @@ def run_ffuf(
         ) from exc
     except OSError as exc:
         logger.error("Failed to execute FFUF: %s", exc)
-        raise RuntimeError(
-            f"Failed to execute FFUF: {exc}"
-        ) from exc
+        raise RuntimeError(f"Failed to execute FFUF: {exc}") from exc
 
-    results = sorted({
-        url.replace("FUZZ", word.strip())
-        for word in process.stdout.splitlines()
-        if word.strip()
-    })
+    results = sorted(
+        {
+            url.replace("FUZZ", word.strip())
+            for word in process.stdout.splitlines()
+            if word.strip()
+        }
+    )
 
     logger.info(
         "FFUF finished with exit code %s and %s result(s)",
@@ -139,11 +138,13 @@ def run_ffuf(
 def parse_dirb_results(output: str) -> list[str]:
     """Extract discovered URLs from DIRB output."""
 
-    return sorted({
-        match.group(1)
-        for line in output.splitlines()
-        if (match := DIRB_RESULT_PATTERN.match(line.strip()))
-    })
+    return sorted(
+        {
+            match.group(1)
+            for line in output.splitlines()
+            if (match := DIRB_RESULT_PATTERN.match(line.strip()))
+        }
+    )
 
 
 def run_dirb(
@@ -186,9 +187,7 @@ def run_dirb(
         ) from exc
     except OSError as exc:
         logger.error("Failed to execute DIRB: %s", exc)
-        raise RuntimeError(
-            f"Failed to execute DIRB: {exc}"
-        ) from exc
+        raise RuntimeError(f"Failed to execute DIRB: {exc}") from exc
 
     results = parse_dirb_results(process.stdout)
 

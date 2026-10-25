@@ -4,12 +4,11 @@ import ipaddress
 import logging
 import subprocess
 import threading
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from typing import Callable
 
 from voidscan.errors import ScanCancelled
-
 
 logger = logging.getLogger("voidscan.scanners.discovery")
 
@@ -143,10 +142,7 @@ def discover_hosts(
             }
 
             for future in as_completed(futures):
-                if (
-                    cancel_event is not None
-                    and cancel_event.is_set()
-                ):
+                if cancel_event is not None and cancel_event.is_set():
                     for pending in futures:
                         pending.cancel()
 
@@ -154,9 +150,7 @@ def discover_hosts(
                         "Host discovery cancelled for %s",
                         validated_network,
                     )
-                    raise ScanCancelled(
-                        "Host discovery cancelled by user."
-                    )
+                    raise ScanCancelled("Host discovery cancelled by user.")
 
                 completed += 1
 

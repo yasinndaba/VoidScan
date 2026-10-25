@@ -10,36 +10,38 @@ from voidscan import __version__
 from voidscan.config import Config, get_config
 from voidscan.dependencies import is_tool_installed
 from voidscan.errors import ScanCancelled, ScanTimeout
-from voidscan.execution import run_with_progress
-from voidscan.targets import TargetManager
-from voidscan.scanners.nmap import run_nmap
-from voidscan.scanners.discovery import discover_hosts, network_host_count
-from voidscan.scanners.subdomains import (
-    enumerate_subdomains,
-    merge_subdomain_results,
-)
-from voidscan.validators import (
-    is_valid_hostname,
-    target_host,
-    to_web_url,
-)
-from voidscan.scanners.directories import enumerate_directories
-from voidscan.scanners.ip_info import get_ip_info
-from voidscan.scanners.system_monitor import get_system_monitor
-from voidscan.findings_nmap import analyze_nmap_result
-from voidscan.findings_discovery import analyze_discovery_result
-from voidscan.findings_subdomains import analyze_subdomain_result
+from voidscan.execution import ScanContext, run_with_progress
 from voidscan.findings_directories import analyze_directory_result
+from voidscan.findings_discovery import analyze_discovery_result
 from voidscan.findings_ip_info import analyze_ip_info_result
+from voidscan.findings_nmap import analyze_nmap_result
+from voidscan.findings_subdomains import analyze_subdomain_result
+from voidscan.html_reporter import save_html_report
 from voidscan.reporter import (
     create_report,
     display_findings,
     display_report_summary,
     save_json_report,
 )
-from voidscan.html_reporter import save_html_report
-
-
+from voidscan.scanners.directories import (
+    DirectoryResult,
+    enumerate_directories,
+)
+from voidscan.scanners.discovery import discover_hosts, network_host_count
+from voidscan.scanners.ip_info import get_ip_info
+from voidscan.scanners.nmap import run_nmap
+from voidscan.scanners.subdomains import (
+    SubdomainResult,
+    enumerate_subdomains,
+    merge_subdomain_results,
+)
+from voidscan.scanners.system_monitor import get_system_monitor
+from voidscan.targets import TargetManager
+from voidscan.validators import (
+    is_valid_hostname,
+    target_host,
+    to_web_url,
+)
 
 console = Console()
 
@@ -70,8 +72,7 @@ def show_scan_cancelled(
 
     console.print(
         Panel(
-            "[yellow]The scan was cancelled. "
-            "No results were saved.[/yellow]",
+            "[yellow]The scan was cancelled. No results were saved.[/yellow]",
             title=title,
             border_style="yellow",
         )
@@ -113,13 +114,11 @@ def _run_subdomain_scan(
     domain: str,
     engine: str,
     config: Config,
-):
+) -> SubdomainResult:
     """Run one subdomain engine with its configured timeout."""
 
     timeout = (
-        config.amass_timeout
-        if engine == "amass"
-        else config.subfinder_timeout
+        config.amass_timeout if engine == "amass" else config.subfinder_timeout
     )
 
     return run_with_progress(
@@ -151,7 +150,8 @@ def show_banner() -> None:
     console.print(
         Panel(
             f"[bold cyan]{banner}[/bold cyan]"
-            "\n[bold yellow]Authorized Reconnaissance & Security Assessment Toolkit[/bold yellow]"
+            "\n[bold yellow]Authorized Reconnaissance & Security "
+            "Assessment Toolkit[/bold yellow]"
             "\n[dim]Written by Voidara[/dim]",
             border_style="cyan",
             expand=False,
@@ -255,9 +255,7 @@ def target_manager() -> None:
             targets = manager.list_targets()
 
             if not targets:
-                console.print(
-                    "\n[yellow]No targets have been saved.[/yellow]"
-                )
+                console.print("\n[yellow]No targets have been saved.[/yellow]")
             else:
                 target_table = Table(
                     title="Saved Targets",
@@ -293,9 +291,7 @@ def target_manager() -> None:
                     f"\n[bold green]✓ Target removed:[/bold green] {target}"
                 )
             else:
-                console.print(
-                    f"\n[yellow]Target not found:[/yellow] {target}"
-                )
+                console.print(f"\n[yellow]Target not found:[/yellow] {target}")
 
             console.input("\nPress Enter to continue...")
 
@@ -474,12 +470,8 @@ def network_scan() -> None:
                     )
                 )
 
-            save_json = Confirm.ask(
-                "Save scan results as JSON report?"
-            )
-            save_html = Confirm.ask(
-                "Save scan results as HTML report?"
-            )
+            save_json = Confirm.ask("Save scan results as JSON report?")
+            save_html = Confirm.ask("Save scan results as HTML report?")
 
             if save_json or save_html:
                 report = create_report(
@@ -517,8 +509,7 @@ def network_scan() -> None:
                         )
 
                         console.print(
-                            f"\n[green]HTML report saved:[/green] "
-                            f"{html_path}"
+                            f"\n[green]HTML report saved:[/green] {html_path}"
                         )
 
                     except (OSError, TypeError) as exc:
@@ -548,13 +539,13 @@ def network_scan() -> None:
         show_scan_failure("Scan Error", exc)
 
     console.input("\nPress Enter to return to the menu...")
-    
-    
+
+
 def live_host_discovery() -> None:
     """Run an interactive live host discovery scan."""
 
     show_banner()
-    
+
     config = get_config()
     config.create_directories()
 
@@ -661,12 +652,8 @@ def live_host_discovery() -> None:
     findings = analyze_discovery_result(result)
     display_findings(findings)
 
-    save_json = Confirm.ask(
-        "Save discovery results as JSON report?"
-    )
-    save_html = Confirm.ask(
-        "Save discovery results as HTML report?"
-    )
+    save_json = Confirm.ask("Save discovery results as JSON report?")
+    save_html = Confirm.ask("Save discovery results as HTML report?")
 
     if save_json or save_html:
         report = create_report(
@@ -719,6 +706,7 @@ def live_host_discovery() -> None:
         display_report_summary(report)
 
     console.input("\nPress Enter to return to the menu...")
+
 
 def subdomain_enumeration() -> None:
     """Run an interactive subdomain enumeration."""
@@ -775,7 +763,8 @@ def subdomain_enumeration() -> None:
     if not is_valid_hostname(domain):
         console.print(
             Panel(
-                "[bold red]The selected target is not a valid domain.[/bold red]\n\n"
+                "[bold red]The selected target is not a valid domain."
+                "[/bold red]\n\n"
                 "Subdomain enumeration requires a domain such as "
                 "example.com.",
                 title="Invalid Target",
@@ -969,26 +958,19 @@ def subdomain_enumeration() -> None:
         console.print(
             Panel(
                 "The enumeration engine reported a failure.",
-                title=f"Enumeration Failed — Exit Code "
-                f"{result.return_code}",
+                title=f"Enumeration Failed — Exit Code {result.return_code}",
                 border_style="red",
+            )
         )
-    )
 
-    can_report = (
-        result.success or bool(result.subdomains) or result.timed_out
-    )
+    can_report = result.success or bool(result.subdomains) or result.timed_out
 
     if can_report:
         findings = analyze_subdomain_result(result)
         display_findings(findings)
 
-        save_json = Confirm.ask(
-            "Save enumeration results as JSON report?"
-        )
-        save_html = Confirm.ask(
-            "Save enumeration results as HTML report?"
-        )
+        save_json = Confirm.ask("Save enumeration results as JSON report?")
+        save_html = Confirm.ask("Save enumeration results as HTML report?")
 
         if save_json or save_html:
             report = create_report(
@@ -1006,8 +988,7 @@ def subdomain_enumeration() -> None:
                     )
 
                     console.print(
-                        f"\n[green]JSON report saved:[/green] "
-                        f"{report_path}"
+                        f"\n[green]JSON report saved:[/green] {report_path}"
                     )
 
                 except (OSError, TypeError) as exc:
@@ -1027,8 +1008,7 @@ def subdomain_enumeration() -> None:
                     )
 
                     console.print(
-                        f"\n[green]HTML report saved:[/green] "
-                        f"{html_path}"
+                        f"\n[green]HTML report saved:[/green] {html_path}"
                     )
 
                 except (OSError, TypeError) as exc:
@@ -1043,7 +1023,8 @@ def subdomain_enumeration() -> None:
             display_report_summary(report)
 
     console.input("\nPress Enter to return to the menu...")
-    
+
+
 def directory_enumeration() -> None:
     """Run an interactive directory enumeration."""
 
@@ -1101,7 +1082,8 @@ def directory_enumeration() -> None:
     except ValueError:
         console.print(
             Panel(
-                "[bold red]The selected target is not a valid web URL.[/bold red]\n\n"
+                "[bold red]The selected target is not a valid web URL."
+                "[/bold red]\n\n"
                 "Directory enumeration requires a URL or host such as:\n"
                 "https://example.com",
                 title="Invalid Target",
@@ -1185,11 +1167,7 @@ def directory_enumeration() -> None:
 
     show_banner()
 
-    selected_wordlist = (
-        "Default common.txt"
-        if wordlist is None
-        else wordlist
-    )
+    selected_wordlist = "Default common.txt" if wordlist is None else wordlist
 
     console.print(
         Panel(
@@ -1203,12 +1181,12 @@ def directory_enumeration() -> None:
     )
 
     engine_timeout = (
-        config.ffuf_timeout
-        if engine == "ffuf"
-        else config.dirb_timeout
+        config.ffuf_timeout if engine == "ffuf" else config.dirb_timeout
     )
 
-    def run_directory_enumeration(ctx):
+    def run_directory_enumeration(
+        ctx: ScanContext,
+    ) -> DirectoryResult:
         if wordlist is None:
             return enumerate_directories(
                 target,
@@ -1285,10 +1263,7 @@ def directory_enumeration() -> None:
         console.print(
             Panel(
                 "The enumeration engine reported a failure.",
-                title=(
-                    f"Enumeration Failed — Exit Code "
-                    f"{result.return_code}"
-                ),
+                title=(f"Enumeration Failed — Exit Code {result.return_code}"),
                 border_style="red",
             )
         )
@@ -1297,12 +1272,8 @@ def directory_enumeration() -> None:
         findings = analyze_directory_result(result)
         display_findings(findings)
 
-        save_json = Confirm.ask(
-            "Save enumeration results as JSON report?"
-        )
-        save_html = Confirm.ask(
-            "Save enumeration results as HTML report?"
-        )
+        save_json = Confirm.ask("Save enumeration results as JSON report?")
+        save_html = Confirm.ask("Save enumeration results as HTML report?")
 
         if save_json or save_html:
             report = create_report(
@@ -1320,8 +1291,7 @@ def directory_enumeration() -> None:
                     )
 
                     console.print(
-                        f"\n[green]JSON report saved:[/green] "
-                        f"{report_path}"
+                        f"\n[green]JSON report saved:[/green] {report_path}"
                     )
 
                 except (OSError, TypeError) as exc:
@@ -1341,8 +1311,7 @@ def directory_enumeration() -> None:
                     )
 
                     console.print(
-                        f"\n[green]HTML report saved:[/green] "
-                        f"{html_path}"
+                        f"\n[green]HTML report saved:[/green] {html_path}"
                     )
 
                 except (OSError, TypeError) as exc:
@@ -1357,7 +1326,8 @@ def directory_enumeration() -> None:
             display_report_summary(report)
 
     console.input("\nPress Enter to return to the menu...")
-    
+
+
 def ip_information() -> None:
     """Display information about an IP address or hostname."""
 
@@ -1471,12 +1441,8 @@ def ip_information() -> None:
     findings = analyze_ip_info_result(result)
     display_findings(findings)
 
-    save_json = Confirm.ask(
-        "Save IP information as JSON report?"
-    )
-    save_html = Confirm.ask(
-        "Save IP information as HTML report?"
-    )
+    save_json = Confirm.ask("Save IP information as JSON report?")
+    save_html = Confirm.ask("Save IP information as HTML report?")
 
     if save_json or save_html:
         report = create_report(
@@ -1529,13 +1495,13 @@ def ip_information() -> None:
         display_report_summary(report)
 
     console.input("\nPress Enter to return to the menu...")
-    
+
+
 def system_monitor() -> None:
     """Display local system information."""
     console.print(
         Panel(
-            "[bold cyan]System Monitor[/bold cyan]\n"
-            "Local system information",
+            "[bold cyan]System Monitor[/bold cyan]\nLocal system information",
             expand=False,
         )
     )
@@ -1605,10 +1571,7 @@ def view_logs() -> None:
     console.print(
         Panel(
             Text("\n".join(preview)),
-            title=(
-                f"View Logs — last {len(preview)} of "
-                f"{len(lines)} entries"
-            ),
+            title=(f"View Logs — last {len(preview)} of {len(lines)} entries"),
             border_style="cyan",
         )
     )
@@ -1669,9 +1632,7 @@ def settings() -> None:
     for tool in ("nmap", "ffuf", "dirb", "subfinder", "amass"):
         installed = is_tool_installed(tool)
         status = (
-            "[green]Installed[/green]"
-            if installed
-            else "[red]Missing[/red]"
+            "[green]Installed[/green]" if installed else "[red]Missing[/red]"
         )
 
         tools_table.add_row(tool, status)
@@ -1705,7 +1666,7 @@ def run_menu() -> None:
             live_host_discovery()
 
         elif choice == "3":
-           subdomain_enumeration()
+            subdomain_enumeration()
 
         elif choice == "4":
             directory_enumeration()

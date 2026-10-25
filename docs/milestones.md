@@ -131,12 +131,14 @@ Completed:
 * [x] Findings deduplication with merged evidence
 * [x] Versioned report schema
 * [x] Consistent empty, timeout, missing-tool, and invalid-input states
+* [x] Ruff linting and formatting
+* [x] Mypy type checking for `voidscan/`
 * [x] 215 automated tests passing
 
 Remaining:
 
 * [ ] Automated integration tests
-* [ ] Static analysis
+* [ ] Coverage gate
 * [ ] Code quality improvements
 
 ## Milestone 7 — CI/CD

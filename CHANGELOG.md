@@ -4,7 +4,18 @@ All notable changes to VoidScan will be documented here.
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+* Ruff linting and formatting with a `dev` extras group
+* Mypy type checking for `voidscan/` with strict untyped-definition checks
+* README section documenting the local development checks
+
+### Changed
+
+* The package now targets Python 3.10 consistently for formatting, linting, and type checking
+* TOML loading and environment overrides are fully typed and mypy-clean
+* Subprocess startup has explicit POSIX and non-POSIX branches, and timeouts chain their original exception
+* The code base is formatted with Ruff at a 79-character line length
 
 ## [0.2.0] - 2026-10-25
 

@@ -4,13 +4,12 @@ import logging
 import math
 import shutil
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 from voidscan.errors import ScanTimeout
 from voidscan.process import run_command
 from voidscan.validators import is_valid_hostname
-
 
 logger = logging.getLogger("voidscan.scanners.subdomains")
 
@@ -72,9 +71,7 @@ def run_subfinder(
 ) -> SubdomainResult:
     """Run Subfinder against a domain."""
 
-    resolved_timeout = (
-        SUBFINDER_TIMEOUT if timeout is None else timeout
-    )
+    resolved_timeout = SUBFINDER_TIMEOUT if timeout is None else timeout
 
     command = [
         "subfinder",
@@ -103,9 +100,7 @@ def run_subfinder(
         ) from exc
     except OSError as exc:
         logger.error("Failed to execute Subfinder: %s", exc)
-        raise RuntimeError(
-            f"Failed to execute Subfinder: {exc}"
-        ) from exc
+        raise RuntimeError(f"Failed to execute Subfinder: {exc}") from exc
 
     subdomains = parse_subdomains(process.stdout)
 
@@ -160,9 +155,7 @@ def run_amass(
             on_heartbeat=on_heartbeat,
         )
     except ScanTimeout as exc:
-        subdomains = parse_subdomains(
-            f"{exc.stdout}\n{exc.stderr}"
-        )
+        subdomains = parse_subdomains(f"{exc.stdout}\n{exc.stderr}")
 
         logger.warning(
             "Amass timed out for domain %s with %s partial result(s)",
@@ -180,9 +173,7 @@ def run_amass(
         )
     except OSError as exc:
         logger.error("Failed to execute Amass: %s", exc)
-        raise RuntimeError(
-            f"Failed to execute Amass: {exc}"
-        ) from exc
+        raise RuntimeError(f"Failed to execute Amass: {exc}") from exc
 
     subdomains = parse_subdomains(process.stdout)
 
@@ -207,20 +198,14 @@ def merge_subdomain_results(
 ) -> SubdomainResult:
     """Merge two enumeration results, preserving every unique hostname."""
 
-    engines = "+".join(
-        dict.fromkeys((primary.engine, secondary.engine))
-    )
+    engines = "+".join(dict.fromkeys((primary.engine, secondary.engine)))
 
     return SubdomainResult(
         domain=primary.domain,
         engine=engines,
-        subdomains=sorted(
-            set(primary.subdomains) | set(secondary.subdomains)
-        ),
+        subdomains=sorted(set(primary.subdomains) | set(secondary.subdomains)),
         return_code=(
-            secondary.return_code
-            if secondary.success
-            else primary.return_code
+            secondary.return_code if secondary.success else primary.return_code
         ),
         success=primary.success or secondary.success,
         timed_out=primary.timed_out or secondary.timed_out,

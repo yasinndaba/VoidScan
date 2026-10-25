@@ -250,8 +250,27 @@ read from the main menu with **View Logs**.
 
 ## Testing
 
+Install the development extras, then run the same checks used before a
+commit:
+
 ```bash
+pip install -e ".[dev]"
 pytest -q
+ruff check voidscan tests
+ruff format --check voidscan tests
+mypy
+```
+
+Ruff and mypy are configured in `pyproject.toml`, so the checks need no
+extra flags. The test suite runs without network access and does not
+require the external tools.
+
+To run the Ruff checks automatically on staged files, install
+[`pre-commit`](https://pre-commit.com/) and enable the bundled hook:
+
+```bash
+pip install pre-commit
+pre-commit install
 ```
 
 ## Roadmap

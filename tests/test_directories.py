@@ -1,8 +1,6 @@
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
 from voidscan.errors import ScanTimeout
 from voidscan.process import CommandResult
 from voidscan.scanners.directories import (

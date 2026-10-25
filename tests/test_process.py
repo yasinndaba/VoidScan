@@ -3,7 +3,6 @@ import threading
 import time
 
 import pytest
-
 from voidscan.errors import ScanCancelled, ScanTimeout
 from voidscan.process import run_command
 

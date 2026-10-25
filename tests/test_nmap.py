@@ -1,5 +1,4 @@
 import pytest
-
 from voidscan.errors import ScanTimeout
 from voidscan.process import CommandResult
 from voidscan.scanners.nmap import (
