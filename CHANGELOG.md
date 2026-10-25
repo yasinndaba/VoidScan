@@ -23,6 +23,7 @@ All notable changes to VoidScan will be documented here.
 * Unique timestamped HTML report filenames
 * Graceful Ctrl+D/EOF handling
 * Tests for URL targets, non-root scans, DIRB/Amass parsing, discovery limits, and report filenames
+* Prioritized roadmap for the remaining reliability, quality, and v1.0 work
 
 ### Changed
 

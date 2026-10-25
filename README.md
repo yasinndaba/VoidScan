@@ -187,6 +187,11 @@ read from the main menu with **View Logs**.
 pytest -q
 ```
 
+## Roadmap
+
+The prioritized plan for reliability, quality, and the v1.0 release is in
+[ROADMAP.md](ROADMAP.md).
+
 ## Project Structure
 
 ```text

@@ -1,5 +1,7 @@
 # VoidScan Development Milestones
 
+Task-level planning lives in [ROADMAP.md](../ROADMAP.md).
+
 ## Milestone 0 — Project Foundation
 
 Status: Complete
@@ -121,7 +123,7 @@ Completed:
 * [x] Shell/tool dependency checks
 * [x] Graceful Ctrl+C and EOF handling
 * [x] Manual full-workflow validation
-* [x] 173 automated tests passing
+* [x] 174 automated tests passing
 
 Remaining:
 
