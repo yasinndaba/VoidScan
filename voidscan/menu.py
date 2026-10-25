@@ -15,7 +15,17 @@ from voidscan.scanners.directories import enumerate_directories
 from urllib.parse import urlparse
 from voidscan.scanners.ip_info import get_ip_info
 from voidscan.scanners.system_monitor import get_system_monitor
-from voidscan.reporter import create_report, save_scan_report
+from voidscan.findings_nmap import analyze_nmap_result
+from voidscan.findings_discovery import analyze_discovery_result
+from voidscan.findings_subdomains import analyze_subdomain_result
+from voidscan.findings_directories import analyze_directory_result
+from voidscan.findings_ip_info import analyze_ip_info_result
+from voidscan.reporter import (
+    create_report,
+    display_findings,
+    display_report_summary,
+    save_json_report,
+)
 from voidscan.html_reporter import save_html_report
 
 
@@ -340,54 +350,66 @@ def network_scan() -> None:
                 )
             )
 
-            if Confirm.ask("Save scan results as JSON report?"):
-                
-                try:
-                    report_path = save_scan_report(
-                        scan_type="Network Scan",
-                        target=target,
-                        result=result,
-                        output_directory=config.report_dir,
-                    )
+            findings = analyze_nmap_result(result)
+            display_findings(findings)
 
-                    console.print(
-                        f"\n[green]Report saved:[/green] {report_path}"
-                    )
-
-                except (OSError, TypeError) as exc:
-                    console.print(
-                        Panel(
-                            f"[bold red]{exc}[/bold red]",
-                            title="Report Error",
-                            border_style="red",
+            save_json = Confirm.ask(
+                "Save scan results as JSON report?"
             )
-        )
-            if Confirm.ask("Save scan results as HTML report?"):
-                        
-                try:
-                    report = create_report(
-                        scan_type="Network Scan",
-                        target=target,
-                        result=result,
-                    )
-
-                    html_path = save_html_report(
-                        report=report,
-                        output_directory=config.report_dir,
-                    )
-
-                    console.print(
-                        f"\n[green]HTML report saved:[/green] {html_path}"
-                    )
-
-                except (OSError, TypeError) as exc:
-                    console.print(
-                        Panel(
-                            f"[bold red]{exc}[/bold red]",
-                            title="HTML Report Error",
-                            border_style="red",
+            save_html = Confirm.ask(
+                "Save scan results as HTML report?"
             )
-        )
+
+            if save_json or save_html:
+                report = create_report(
+                    scan_type="Network Scan",
+                    target=target,
+                    result=result,
+                    findings=findings,
+                )
+
+                if save_json:
+                    try:
+                        report_path = save_json_report(
+                            report=report,
+                            output_directory=config.report_dir,
+                        )
+
+                        console.print(
+                            f"\n[green]Report saved:[/green] {report_path}"
+                        )
+
+                    except (OSError, TypeError) as exc:
+                        console.print(
+                            Panel(
+                                f"[bold red]{exc}[/bold red]",
+                                title="Report Error",
+                                border_style="red",
+                            )
+                        )
+
+                if save_html:
+                    try:
+                        html_path = save_html_report(
+                            report=report,
+                            output_directory=config.report_dir,
+                        )
+
+                        console.print(
+                            f"\n[green]HTML report saved:[/green] "
+                            f"{html_path}"
+                        )
+
+                    except (OSError, TypeError) as exc:
+                        console.print(
+                            Panel(
+                                f"[bold red]{exc}[/bold red]",
+                                title="HTML Report Error",
+                                border_style="red",
+                            )
+                        )
+
+                display_report_summary(report)
 
         else:
             console.print(
@@ -490,56 +512,68 @@ def live_host_discovery() -> None:
         f"\n[bold green]Hosts discovered:[/bold green] {result.reachable}"
     )
 
-    if Confirm.ask("Save discovery results as JSON report?"):
-        try:
-            report_path = save_scan_report(
-                scan_type="Live Host Discovery",
-                target=result.network,
-                result=result,
-                output_directory=Config().report_dir,
-            )
+    findings = analyze_discovery_result(result)
+    display_findings(findings)
 
-            console.print(
-                f"\n[green]JSON report saved:[/green] {report_path}"
-            )
+    save_json = Confirm.ask(
+        "Save discovery results as JSON report?"
+    )
+    save_html = Confirm.ask(
+        "Save discovery results as HTML report?"
+    )
 
-        except (OSError, TypeError) as exc:
-            console.print(
-                Panel(
-                    f"[bold red]{exc}[/bold red]",
-                    title="Report Error",
-                    border_style="red",
+    if save_json or save_html:
+        report = create_report(
+            scan_type="Live Host Discovery",
+            target=result.network,
+            result=result,
+            findings=findings,
+        )
+
+        if save_json:
+            try:
+                report_path = save_json_report(
+                    report=report,
+                    output_directory=Config().report_dir,
                 )
-            )
 
-    if Confirm.ask("Save discovery results as HTML report?"):
-        try:
-            report = create_report(
-                scan_type="Live Host Discovery",
-                target=result.network,
-                result=result,
-            )
-
-            html_path = save_html_report(
-                report=report,
-                output_directory=Config().report_dir,
-            )
-
-            console.print(
-                f"\n[green]HTML report saved:[/green] {html_path}"
-            )
-
-        except (OSError, TypeError) as exc:
-            console.print(
-                Panel(
-                    f"[bold red]{exc}[/bold red]",
-                    title="HTML Report Error",
-                    border_style="red",
+                console.print(
+                    f"\n[green]JSON report saved:[/green] {report_path}"
                 )
-            )
+
+            except (OSError, TypeError) as exc:
+                console.print(
+                    Panel(
+                        f"[bold red]{exc}[/bold red]",
+                        title="Report Error",
+                        border_style="red",
+                    )
+                )
+
+        if save_html:
+            try:
+                html_path = save_html_report(
+                    report=report,
+                    output_directory=Config().report_dir,
+                )
+
+                console.print(
+                    f"\n[green]HTML report saved:[/green] {html_path}"
+                )
+
+            except (OSError, TypeError) as exc:
+                console.print(
+                    Panel(
+                        f"[bold red]{exc}[/bold red]",
+                        title="HTML Report Error",
+                        border_style="red",
+                    )
+                )
+
+        display_report_summary(report)
 
     console.input("\nPress Enter to return to the menu...")
-    
+
 def subdomain_enumeration() -> None:
     """Run an interactive subdomain enumeration."""
 
@@ -724,53 +758,67 @@ def subdomain_enumeration() -> None:
     )
 
     if result.success:
-        if Confirm.ask("Save enumeration results as JSON report?"):
-            try:
-                report_path = save_scan_report(
-                    scan_type="Subdomain Enumeration",
-                    target=domain,
-                    result=result,
-                    output_directory=config.report_dir,
-                )
+        findings = analyze_subdomain_result(result)
+        display_findings(findings)
 
-                console.print(
-                    f"\n[green]JSON report saved:[/green] {report_path}"
-                )
+        save_json = Confirm.ask(
+            "Save enumeration results as JSON report?"
+        )
+        save_html = Confirm.ask(
+            "Save enumeration results as HTML report?"
+        )
 
-            except (OSError, TypeError) as exc:
-                console.print(
-                    Panel(
-                        f"[bold red]{exc}[/bold red]",
-                        title="Report Error",
-                        border_style="red",
+        if save_json or save_html:
+            report = create_report(
+                scan_type="Subdomain Enumeration",
+                target=domain,
+                result=result,
+                findings=findings,
+            )
+
+            if save_json:
+                try:
+                    report_path = save_json_report(
+                        report=report,
+                        output_directory=config.report_dir,
                     )
-                )
 
-        if Confirm.ask("Save enumeration results as HTML report?"):
-            try:
-                report = create_report(
-                    scan_type="Subdomain Enumeration",
-                    target=domain,
-                    result=result,
-                )
-
-                html_path = save_html_report(
-                    report=report,
-                    output_directory=config.report_dir,
-                )
-
-                console.print(
-                    f"\n[green]HTML report saved:[/green] {html_path}"
-                )
-
-            except (OSError, TypeError) as exc:
-                console.print(
-                    Panel(
-                        f"[bold red]{exc}[/bold red]",
-                        title="HTML Report Error",
-                        border_style="red",
+                    console.print(
+                        f"\n[green]JSON report saved:[/green] "
+                        f"{report_path}"
                     )
-                )
+
+                except (OSError, TypeError) as exc:
+                    console.print(
+                        Panel(
+                            f"[bold red]{exc}[/bold red]",
+                            title="Report Error",
+                            border_style="red",
+                        )
+                    )
+
+            if save_html:
+                try:
+                    html_path = save_html_report(
+                        report=report,
+                        output_directory=config.report_dir,
+                    )
+
+                    console.print(
+                        f"\n[green]HTML report saved:[/green] "
+                        f"{html_path}"
+                    )
+
+                except (OSError, TypeError) as exc:
+                    console.print(
+                        Panel(
+                            f"[bold red]{exc}[/bold red]",
+                            title="HTML Report Error",
+                            border_style="red",
+                        )
+                    )
+
+            display_report_summary(report)
 
     console.input("\nPress Enter to return to the menu...")
     
@@ -1003,53 +1051,67 @@ def directory_enumeration() -> None:
         )
 
     if result.success:
-        if Confirm.ask("Save enumeration results as JSON report?"):
-            try:
-                report_path = save_scan_report(
-                    scan_type="Directory Enumeration",
-                    target=target,
-                    result=result,
-                    output_directory=config.report_dir,
-                )
+        findings = analyze_directory_result(result)
+        display_findings(findings)
 
-                console.print(
-                    f"\n[green]JSON report saved:[/green] {report_path}"
-                )
+        save_json = Confirm.ask(
+            "Save enumeration results as JSON report?"
+        )
+        save_html = Confirm.ask(
+            "Save enumeration results as HTML report?"
+        )
 
-            except (OSError, TypeError) as exc:
-                console.print(
-                    Panel(
-                        f"[bold red]{exc}[/bold red]",
-                        title="Report Error",
-                        border_style="red",
+        if save_json or save_html:
+            report = create_report(
+                scan_type="Directory Enumeration",
+                target=target,
+                result=result,
+                findings=findings,
+            )
+
+            if save_json:
+                try:
+                    report_path = save_json_report(
+                        report=report,
+                        output_directory=config.report_dir,
                     )
-                )
 
-        if Confirm.ask("Save enumeration results as HTML report?"):
-            try:
-                report = create_report(
-                    scan_type="Directory Enumeration",
-                    target=target,
-                    result=result,
-                )
-
-                html_path = save_html_report(
-                    report=report,
-                    output_directory=config.report_dir,
-                )
-
-                console.print(
-                    f"\n[green]HTML report saved:[/green] {html_path}"
-                )
-
-            except (OSError, TypeError) as exc:
-                console.print(
-                    Panel(
-                        f"[bold red]{exc}[/bold red]",
-                        title="HTML Report Error",
-                        border_style="red",
+                    console.print(
+                        f"\n[green]JSON report saved:[/green] "
+                        f"{report_path}"
                     )
-                )
+
+                except (OSError, TypeError) as exc:
+                    console.print(
+                        Panel(
+                            f"[bold red]{exc}[/bold red]",
+                            title="Report Error",
+                            border_style="red",
+                        )
+                    )
+
+            if save_html:
+                try:
+                    html_path = save_html_report(
+                        report=report,
+                        output_directory=config.report_dir,
+                    )
+
+                    console.print(
+                        f"\n[green]HTML report saved:[/green] "
+                        f"{html_path}"
+                    )
+
+                except (OSError, TypeError) as exc:
+                    console.print(
+                        Panel(
+                            f"[bold red]{exc}[/bold red]",
+                            title="HTML Report Error",
+                            border_style="red",
+                        )
+                    )
+
+            display_report_summary(report)
 
     console.input("\nPress Enter to return to the menu...")
     
@@ -1166,53 +1228,65 @@ def ip_information() -> None:
 
     console.print(info_table)
 
-    if Confirm.ask("Save IP information as JSON report?"):
-        try:
-            report_path = save_scan_report(
-                scan_type="IP Information",
-                target=target,
-                result=result,
-                output_directory=config.report_dir,
-            )
+    findings = analyze_ip_info_result(result)
+    display_findings(findings)
 
-            console.print(
-                f"\n[green]JSON report saved:[/green] {report_path}"
-            )
+    save_json = Confirm.ask(
+        "Save IP information as JSON report?"
+    )
+    save_html = Confirm.ask(
+        "Save IP information as HTML report?"
+    )
 
-        except (OSError, TypeError) as exc:
-            console.print(
-                Panel(
-                    f"[bold red]{exc}[/bold red]",
-                    title="Report Error",
-                    border_style="red",
+    if save_json or save_html:
+        report = create_report(
+            scan_type="IP Information",
+            target=target,
+            result=result,
+            findings=findings,
+        )
+
+        if save_json:
+            try:
+                report_path = save_json_report(
+                    report=report,
+                    output_directory=config.report_dir,
                 )
-            )
 
-    if Confirm.ask("Save IP information as HTML report?"):
-        try:
-            report = create_report(
-                scan_type="IP Information",
-                target=target,
-                result=result,
-            )
-
-            html_path = save_html_report(
-                report=report,
-                output_directory=config.report_dir,
-            )
-
-            console.print(
-                f"\n[green]HTML report saved:[/green] {html_path}"
-            )
-
-        except (OSError, TypeError) as exc:
-            console.print(
-                Panel(
-                    f"[bold red]{exc}[/bold red]",
-                    title="HTML Report Error",
-                    border_style="red",
+                console.print(
+                    f"\n[green]JSON report saved:[/green] {report_path}"
                 )
-            )
+
+            except (OSError, TypeError) as exc:
+                console.print(
+                    Panel(
+                        f"[bold red]{exc}[/bold red]",
+                        title="Report Error",
+                        border_style="red",
+                    )
+                )
+
+        if save_html:
+            try:
+                html_path = save_html_report(
+                    report=report,
+                    output_directory=config.report_dir,
+                )
+
+                console.print(
+                    f"\n[green]HTML report saved:[/green] {html_path}"
+                )
+
+            except (OSError, TypeError) as exc:
+                console.print(
+                    Panel(
+                        f"[bold red]{exc}[/bold red]",
+                        title="HTML Report Error",
+                        border_style="red",
+                    )
+                )
+
+        display_report_summary(report)
 
     console.input("\nPress Enter to return to the menu...")
     

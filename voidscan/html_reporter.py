@@ -5,6 +5,50 @@ from pathlib import Path
 from typing import Any
 
 
+def _render_findings_section(findings: list[Any]) -> str:
+    """Render serialized findings as a list of escaped HTML blocks."""
+
+    blocks = []
+
+    for finding in findings:
+        if not isinstance(finding, dict):
+            continue
+
+        severity = escape(str(finding.get("severity", "INFO")).upper())
+        title = escape(str(finding.get("title", "Unnamed finding")))
+        description = escape(str(finding.get("description", "")))
+        evidence = escape(str(finding.get("evidence", "")))
+        recommendation = escape(
+            str(finding.get("recommendation", ""))
+        )
+
+        blocks.append(
+            f"""
+        <div class="finding">
+            <div class="finding-header">
+                <span class="severity severity-{severity.lower()}">
+                    {severity}
+                </span>
+                <span class="finding-title">{title}</span>
+            </div>
+            <p>{description}</p>
+            <pre class="evidence">{evidence}</pre>
+            <p class="recommendation">
+                <strong>Recommendation:</strong> {recommendation}
+            </p>
+        </div>"""
+        )
+
+    if not blocks:
+        return (
+            '<p class="no-findings">'
+            "No security findings were recorded for this scan."
+            "</p>"
+        )
+
+    return "".join(blocks)
+
+
 def generate_html_report(report: dict[str, Any]) -> str:
     """Generate a self-contained HTML report from a VoidScan report."""
 
@@ -13,6 +57,15 @@ def generate_html_report(report: dict[str, Any]) -> str:
     scan_type = escape(str(report.get("scan_type", "Unknown")))
     target = escape(str(report.get("target", "Unknown")))
     timestamp = escape(str(report.get("timestamp", "Unknown")))
+
+    findings = report.get("findings", [])
+    if not isinstance(findings, list):
+        findings = []
+
+    findings_count = len(
+        [finding for finding in findings if isinstance(finding, dict)]
+    )
+    findings_html = _render_findings_section(findings)
 
     status = "Unknown"
     status_class = "unknown"
@@ -83,6 +136,70 @@ def generate_html_report(report: dict[str, Any]) -> str:
             color: #777;
         }}
 
+        .finding {{
+            border-left: 4px solid #999;
+            background: #fafafa;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+        }}
+
+        .finding-header {{
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 6px;
+        }}
+
+        .finding-title {{
+            font-weight: bold;
+        }}
+
+        .severity {{
+            font-size: 0.8em;
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 3px;
+            color: white;
+            background: #777;
+        }}
+
+        .severity-critical {{
+            background: #7f1d1d;
+        }}
+
+        .severity-high {{
+            background: #b91c1c;
+        }}
+
+        .severity-medium {{
+            background: #b45309;
+        }}
+
+        .severity-low {{
+            background: #0e7490;
+        }}
+
+        .severity-info {{
+            background: #4b5563;
+        }}
+
+        .evidence {{
+            background: #111;
+            color: #eee;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }}
+
+        .recommendation {{
+            color: #444;
+        }}
+
+        .no-findings {{
+            color: #777;
+        }}
+
         pre {{
             background: #111;
             color: #eee;
@@ -115,6 +232,10 @@ def generate_html_report(report: dict[str, Any]) -> str:
             <div class="label">Status</div>
             <div class="status {status_class}">{status}</div>
         </div>
+
+        <h2>Security Findings ({findings_count})</h2>
+
+        {findings_html}
 
         <h2>Scan Results</h2>
 

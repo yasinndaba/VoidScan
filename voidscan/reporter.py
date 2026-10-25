@@ -4,15 +4,133 @@ import json
 from dataclasses import asdict, is_dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Sequence, cast
 from rich.console import Console
 from rich.table import Table
+
+from voidscan.findings import Finding, Severity
+
+
+# Most severe first, for sorting and for the summary breakdown.
+SEVERITY_ORDER = (
+    Severity.CRITICAL,
+    Severity.HIGH,
+    Severity.MEDIUM,
+    Severity.LOW,
+    Severity.INFO,
+)
+
+SEVERITY_RANK = {
+    severity.value: index
+    for index, severity in enumerate(SEVERITY_ORDER)
+}
+
+SEVERITY_COLORS = {
+    "CRITICAL": "bold red",
+    "HIGH": "red",
+    "MEDIUM": "yellow",
+    "LOW": "cyan",
+    "INFO": "dim",
+}
+
+
+def _serialize_finding(
+    finding: Finding | dict[str, Any],
+) -> dict[str, Any]:
+    """Convert a Finding into a JSON-friendly dictionary."""
+
+    if isinstance(finding, Finding):
+        return {
+            "title": finding.title,
+            "severity": finding.severity.value,
+            "description": finding.description,
+            "evidence": finding.evidence,
+            "recommendation": finding.recommendation,
+        }
+
+    if isinstance(finding, dict):
+        return dict(finding)
+
+    raise TypeError(
+        "Findings must be Finding instances or dictionaries."
+    )
+
+
+def _severity_counts(
+    findings: Sequence[dict[str, Any]],
+) -> dict[str, int]:
+    """Count serialized findings per severity, most severe first."""
+
+    counts = {severity.value: 0 for severity in SEVERITY_ORDER}
+
+    for finding in findings:
+        severity = str(finding.get("severity", "")).upper()
+        if severity in counts:
+            counts[severity] += 1
+
+    return {
+        severity: count
+        for severity, count in counts.items()
+        if count
+    }
+
+
+def _evidence_preview(evidence: str, limit: int = 3) -> str:
+    """Keep a findings table cell short: first few lines plus a count."""
+
+    lines = [line for line in evidence.splitlines() if line.strip()]
+
+    if not lines:
+        return "—"
+
+    if len(lines) <= limit:
+        return "\n".join(lines)
+
+    return "\n".join(
+        lines[:limit] + [f"… (+{len(lines) - limit} more)"]
+    )
+
+
+def _render_findings_table(
+    findings: Sequence[dict[str, Any]],
+) -> Table:
+    """Render serialized findings as a severity-sorted rich table."""
+
+    table = Table(
+        title=f"Security Findings ({len(findings)})",
+        border_style="cyan",
+    )
+
+    table.add_column("Severity", width=10)
+    table.add_column("Finding")
+    table.add_column("Evidence")
+
+    ordered = sorted(
+        findings,
+        key=lambda finding: SEVERITY_RANK.get(
+            str(finding.get("severity", "")).upper(),
+            len(SEVERITY_RANK),
+        ),
+    )
+
+    for finding in ordered:
+        severity = str(finding.get("severity", "INFO")).upper()
+        color = SEVERITY_COLORS.get(severity, "white")
+
+        table.add_row(
+            f"[{color}]{severity}[/{color}]",
+            str(finding.get("title", "Unnamed finding")),
+            _evidence_preview(str(finding.get("evidence", ""))),
+        )
+
+    return table
 
 
 def create_report(
     scan_type: str,
     target: str,
     result: Any,
+    findings: Sequence[Finding | dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Create a standardized VoidScan report."""
 
@@ -32,6 +150,10 @@ def create_report(
         "target": target,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "result": result_data,
+        "findings": [
+            _serialize_finding(finding)
+            for finding in (findings or [])
+        ],
     }
 
 
@@ -61,6 +183,7 @@ def save_scan_report(
     target: str,
     result: Any,
     output_directory: Path,
+    findings: Sequence[Finding | dict[str, Any]] | None = None,
 ) -> Path:
     """Create and save a scanner result as a JSON report."""
 
@@ -68,6 +191,7 @@ def save_scan_report(
         scan_type=scan_type,
         target=target,
         result=result,
+        findings=findings,
     )
 
     return save_json_report(
@@ -105,6 +229,22 @@ def build_report_summary(
 
     if "results" in result:
         summary["results_found"] = len(result["results"])
+
+    findings = report.get("findings", [])
+
+    if isinstance(findings, list):
+        summary["findings_count"] = len(findings)
+
+        counts = _severity_counts(
+            [
+                finding
+                for finding in findings
+                if isinstance(finding, dict)
+            ]
+        )
+
+        if counts:
+            summary["findings_by_severity"] = counts
 
     return summary
 
@@ -155,4 +295,35 @@ def display_report_summary(report: dict[str, Any]) -> None:
             str(summary["results_found"]),
         )
 
+    if "findings_count" in summary:
+        table.add_row(
+            "Findings",
+            str(summary["findings_count"]),
+        )
+
+    if "findings_by_severity" in summary:
+        breakdown = "  ".join(
+            f"{severity}: {count}"
+            for severity, count in summary["findings_by_severity"].items()
+        )
+        table.add_row("By Severity", breakdown)
+
     console.print(table)
+
+
+def display_findings(
+    findings: Sequence[Finding | dict[str, Any]],
+) -> None:
+    """Display structured findings in the terminal."""
+
+    console = Console()
+    serialized = [
+        _serialize_finding(finding) for finding in findings
+    ]
+
+    if not serialized:
+        console.print("\n[dim]Security findings: none recorded.[/dim]")
+        return
+
+    console.print()
+    console.print(_render_findings_table(serialized))

@@ -18,7 +18,7 @@ Milestone 3 — Network Discovery: Complete
 
 Milestone 4 — Web Reconnaissance: Complete
 
-Milestone 5 — Reporting: In Progress
+Milestone 5 — Reporting: Complete
 
 Milestone 6 — Testing & Quality: In Progress
 
@@ -77,10 +77,15 @@ Milestone 6 — Testing & Quality: In Progress
 
 - Standardized report structure
 - JSON report generation
+- HTML report generation
+- Terminal report summaries
 - Automatic report timestamps
 - Scanner result serialization
 - Nmap scan report generation
-- Report storage in `~/.voidscan/reports/`
+- Structured security findings with severity levels
+- Findings analyzers for Nmap, host discovery, subdomains, directories, and IP information
+- Findings included in JSON and HTML reports
+- Report storage under `~/.voidscan/reports/`
 
 ## Architecture
 
@@ -112,14 +117,20 @@ VoidScan/
 │   │   ├── ip_info.py
 │   │   └── system_monitor.py
 │   │
-│   └── reports/
-│       ├── __init__.py
-│       └── reporter.py
+│   ├── findings.py
+│   ├── findings_nmap.py
+│   ├── findings_discovery.py
+│   ├── findings_subdomains.py
+│   ├── findings_directories.py
+│   ├── findings_ip_info.py
+│   │
+│   ├── reporter.py
+│   ├── html_reporter.py
+│   └── dependencies.py
 │
 ├── tests/
 ├── docs/
 ├── screenshots/
-├── .github/
 ├── main.py
 ├── pyproject.toml
 ├── README.md

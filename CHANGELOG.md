@@ -2,6 +2,29 @@
 
 All notable changes to VoidScan will be documented here.
 
+## [Unreleased]
+
+### Added
+
+* Structured security findings in JSON and HTML reports
+* Severity levels (`INFO`, `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`)
+* Findings analyzers for Nmap, host discovery, subdomains, directory enumeration, and IP information
+* Findings tables in terminal output after each scan
+* Findings section in HTML reports, with severity badges and escaped evidence
+* Terminal report summary shown after saving a report
+* Report summaries report finding counts and a severity breakdown
+* HTML reporter tests, subdomain scanner tests, and discovery scanner tests
+
+### Changed
+
+* A report is now built once per scan and reused for both JSON and HTML output
+* Report summaries now count findings even when there are none
+* Test suite consolidated under `tests/`; **124 tests passing**
+
+### Removed
+
+* Duplicate `voidscan/tests/` tree, superseded by `tests/`
+
 ## [0.1.0] - 2026-09-06
 
 ### Added
@@ -86,10 +109,6 @@ All notable changes to VoidScan will be documented here.
 
 ### In Progress
 
-* Terminal reporting
-* HTML reporting
-* Scan summaries
-* Unified findings model
 * Integration testing expansion
 * Static analysis
 * Code quality improvements

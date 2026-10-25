@@ -90,17 +90,17 @@ Completed:
 
 ## Milestone 5 — Reporting
 
-Status: Planned
+Status: Complete
 
-Planned:
+Completed:
 
-* [ ] Terminal reports
-* [ ] JSON reports
-* [ ] HTML reports
-* [ ] Scan summaries
-* [ ] Findings
-* [ ] Unified reporting structure
-* [ ] Report storage and management
+* [x] Terminal reports
+* [x] JSON reports
+* [x] HTML reports
+* [x] Scan summaries
+* [x] Findings
+* [x] Unified reporting structure
+* [x] Report storage and management
 
 ## Milestone 6 — Testing & Quality
 
@@ -115,7 +115,7 @@ Completed:
 * [x] Mocked subprocess/tool tests
 * [x] Error handling tests
 * [x] System Monitor tests
-* [x] 49 automated tests passing
+* [x] 124 automated tests passing
 
 Remaining:
 
