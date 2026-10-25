@@ -3,14 +3,20 @@
 import logging
 import re
 import shutil
-import subprocess
+import threading
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
+
+from voidscan.errors import ScanTimeout
+from voidscan.process import run_command
 
 
 logger = logging.getLogger("voidscan.scanners.directories")
 
 DEFAULT_WORDLIST = Path("/usr/share/dirb/wordlists/common.txt")
+FFUF_TIMEOUT = 300
+DIRB_TIMEOUT = 300
 
 DIRB_RESULT_PATTERN = re.compile(r"^\+\s+(https?://\S+)")
 
@@ -62,11 +68,16 @@ def validate_wordlist(wordlist: str | Path) -> Path:
 def run_ffuf(
     target: str,
     wordlist: str | Path,
+    *,
+    timeout: float | None = None,
+    cancel_event: threading.Event | None = None,
+    on_heartbeat: Callable[[float], None] | None = None,
 ) -> DirectoryResult:
     """Run FFUF directory enumeration against a target."""
 
     wordlist_path = validate_wordlist(wordlist)
     url = target.rstrip("/") + "/FUZZ"
+    resolved_timeout = FFUF_TIMEOUT if timeout is None else timeout
 
     command = [
         "ffuf",
@@ -82,17 +93,20 @@ def run_ffuf(
     logger.info("Running FFUF command: %s", " ".join(command))
 
     try:
-        process = subprocess.run(
+        process = run_command(
             command,
-            capture_output=True,
-            text=True,
-            timeout=300,
-            check=False,
+            timeout=resolved_timeout,
+            cancel_event=cancel_event,
+            on_heartbeat=on_heartbeat,
         )
-    except subprocess.TimeoutExpired as exc:
+    except ScanTimeout as exc:
         logger.warning("FFUF enumeration timed out for target %s", target)
-        raise RuntimeError(
-            "FFUF directory enumeration timed out after 300 seconds."
+        raise ScanTimeout(
+            f"FFUF directory enumeration timed out after "
+            f"{resolved_timeout:g} seconds.",
+            timeout=resolved_timeout,
+            stdout=exc.stdout,
+            stderr=exc.stderr,
         ) from exc
     except OSError as exc:
         logger.error("Failed to execute FFUF: %s", exc)
@@ -108,7 +122,7 @@ def run_ffuf(
 
     logger.info(
         "FFUF finished with exit code %s and %s result(s)",
-        process.returncode,
+        process.return_code,
         len(results),
     )
 
@@ -117,8 +131,8 @@ def run_ffuf(
         engine="ffuf",
         wordlist=str(wordlist_path),
         results=results,
-        return_code=process.returncode,
-        success=process.returncode == 0,
+        return_code=process.return_code,
+        success=process.return_code == 0,
     )
 
 
@@ -135,10 +149,15 @@ def parse_dirb_results(output: str) -> list[str]:
 def run_dirb(
     target: str,
     wordlist: str | Path,
+    *,
+    timeout: float | None = None,
+    cancel_event: threading.Event | None = None,
+    on_heartbeat: Callable[[float], None] | None = None,
 ) -> DirectoryResult:
     """Run DIRB directory enumeration against a target."""
 
     wordlist_path = validate_wordlist(wordlist)
+    resolved_timeout = DIRB_TIMEOUT if timeout is None else timeout
 
     command = [
         "dirb",
@@ -150,17 +169,20 @@ def run_dirb(
     logger.info("Running DIRB command: %s", " ".join(command))
 
     try:
-        process = subprocess.run(
+        process = run_command(
             command,
-            capture_output=True,
-            text=True,
-            timeout=300,
-            check=False,
+            timeout=resolved_timeout,
+            cancel_event=cancel_event,
+            on_heartbeat=on_heartbeat,
         )
-    except subprocess.TimeoutExpired as exc:
+    except ScanTimeout as exc:
         logger.warning("DIRB enumeration timed out for target %s", target)
-        raise RuntimeError(
-            "DIRB directory enumeration timed out after 300 seconds."
+        raise ScanTimeout(
+            f"DIRB directory enumeration timed out after "
+            f"{resolved_timeout:g} seconds.",
+            timeout=resolved_timeout,
+            stdout=exc.stdout,
+            stderr=exc.stderr,
         ) from exc
     except OSError as exc:
         logger.error("Failed to execute DIRB: %s", exc)
@@ -172,7 +194,7 @@ def run_dirb(
 
     logger.info(
         "DIRB finished with exit code %s and %s result(s)",
-        process.returncode,
+        process.return_code,
         len(results),
     )
 
@@ -181,8 +203,8 @@ def run_dirb(
         engine="dirb",
         wordlist=str(wordlist_path),
         results=results,
-        return_code=process.returncode,
-        success=process.returncode == 0,
+        return_code=process.return_code,
+        success=process.return_code == 0,
     )
 
 
@@ -190,6 +212,10 @@ def enumerate_directories(
     target: str,
     engine: str = "ffuf",
     wordlist: str | Path = DEFAULT_WORDLIST,
+    *,
+    timeout: float | None = None,
+    cancel_event: threading.Event | None = None,
+    on_heartbeat: Callable[[float], None] | None = None,
 ) -> DirectoryResult:
     """Run directory enumeration using the selected engine."""
 
@@ -204,6 +230,18 @@ def enumerate_directories(
     wordlist_path = validate_wordlist(wordlist)
 
     if engine == "ffuf":
-        return run_ffuf(target, wordlist_path)
+        return run_ffuf(
+            target,
+            wordlist_path,
+            timeout=timeout,
+            cancel_event=cancel_event,
+            on_heartbeat=on_heartbeat,
+        )
 
-    return run_dirb(target, wordlist_path)
+    return run_dirb(
+        target,
+        wordlist_path,
+        timeout=timeout,
+        cancel_event=cancel_event,
+        on_heartbeat=on_heartbeat,
+    )

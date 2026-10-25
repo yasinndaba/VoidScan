@@ -53,3 +53,20 @@ def test_analyze_subdomains_failed_scan_returns_no_findings():
     findings = analyze_subdomain_result(result)
 
     assert findings == []
+
+
+def test_analyze_subdomains_reports_partial_timeout_results():
+    result = SubdomainResult(
+        domain="example.com",
+        engine="amass",
+        subdomains=["api.example.com"],
+        return_code=-15,
+        success=False,
+        timed_out=True,
+    )
+
+    findings = analyze_subdomain_result(result)
+
+    assert len(findings) == 1
+    assert "api.example.com" in findings[0].evidence
+    assert "may be incomplete" in findings[0].description

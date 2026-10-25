@@ -24,7 +24,7 @@ def run_network_scan(tmp_path: Path, output: str) -> None:
     )
 
     with (
-        patch("voidscan.menu.Config") as mock_config,
+        patch("voidscan.menu.get_config") as mock_config,
         patch("voidscan.menu.TargetManager") as mock_manager,
         patch("voidscan.menu.run_nmap", return_value=mock_result),
         patch("voidscan.menu.Prompt.ask") as mock_prompt,

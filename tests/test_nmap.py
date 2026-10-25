@@ -1,6 +1,9 @@
 import pytest
 
+from voidscan.errors import ScanTimeout
+from voidscan.process import CommandResult
 from voidscan.scanners.nmap import (
+    NMAP_TIMEOUT,
     SCAN_PROFILES,
     build_nmap_command,
     nmap_installed,
@@ -19,24 +22,21 @@ def test_nmap_installed_returns_boolean():
 
 
 def test_run_nmap_as_regular_user(monkeypatch):
-    class FakeResult:
-        returncode = 0
-        stdout = "Nmap scan report"
-        stderr = ""
+    calls = {}
 
-    def fake_run(*args, **kwargs):
-        assert args[0] == [
-            "nmap",
-            "-sT",
-            "-sV",
-            "-T4",
-            "127.0.0.1",
-        ]
+    def fake_run(command, **kwargs):
+        calls["command"] = command
+        calls["timeout"] = kwargs["timeout"]
 
-        return FakeResult()
+        return CommandResult(
+            command=command,
+            stdout="Nmap scan report",
+            stderr="",
+            return_code=0,
+        )
 
     monkeypatch.setattr(
-        "voidscan.scanners.nmap.subprocess.run",
+        "voidscan.scanners.nmap.run_command",
         fake_run,
     )
 
@@ -52,20 +52,84 @@ def test_run_nmap_as_regular_user(monkeypatch):
 
     result = run_nmap("127.0.0.1")
 
+    assert calls["command"] == [
+        "nmap",
+        "-sT",
+        "-sV",
+        "-T4",
+        "127.0.0.1",
+    ]
+    assert calls["timeout"] == NMAP_TIMEOUT
     assert result.success
     assert result.target == "127.0.0.1"
     assert "Nmap scan report" in result.output
     assert result.command[1:3] == ["-sT", "-sV"]
 
 
+def test_run_nmap_uses_configured_timeout(monkeypatch):
+    observed = {}
+
+    def fake_run(command, **kwargs):
+        observed["timeout"] = kwargs["timeout"]
+
+        return CommandResult(
+            command=command,
+            stdout="",
+            stderr="",
+            return_code=0,
+        )
+
+    monkeypatch.setattr(
+        "voidscan.scanners.nmap.run_command",
+        fake_run,
+    )
+    monkeypatch.setattr(
+        "voidscan.scanners.nmap.nmap_installed",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "voidscan.scanners.nmap.has_root_privileges",
+        lambda: False,
+    )
+
+    run_nmap("127.0.0.1", timeout=42)
+
+    assert observed["timeout"] == 42
+
+
+def test_run_nmap_timeout(monkeypatch):
+    def fake_run(command, **kwargs):
+        raise ScanTimeout(
+            "Command timed out",
+            timeout=kwargs["timeout"],
+            stdout="partial output",
+        )
+
+    monkeypatch.setattr(
+        "voidscan.scanners.nmap.run_command",
+        fake_run,
+    )
+    monkeypatch.setattr(
+        "voidscan.scanners.nmap.nmap_installed",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "voidscan.scanners.nmap.has_root_privileges",
+        lambda: False,
+    )
+
+    with pytest.raises(ScanTimeout, match="timed out after 25 seconds"):
+        run_nmap("127.0.0.1", timeout=25)
+
+
 def test_run_nmap_as_root(monkeypatch):
     class FakeResult:
-        returncode = 0
+        return_code = 0
         stdout = "Nmap scan report"
         stderr = ""
 
     monkeypatch.setattr(
-        "voidscan.scanners.nmap.subprocess.run",
+        "voidscan.scanners.nmap.run_command",
         lambda *args, **kwargs: FakeResult(),
     )
 

@@ -1,5 +1,8 @@
+import threading
+
 import pytest
 
+from voidscan.errors import ScanCancelled
 from voidscan.scanners.discovery import (
     MAX_HOSTS,
     discover_hosts,
@@ -55,8 +58,32 @@ def test_host_is_up_returns_boolean(monkeypatch):
     assert host_is_up("127.0.0.1") is True
 
 
+def test_host_is_up_accepts_cancel_event(monkeypatch):
+    called = False
+
+    def fake_run(*args, **kwargs):
+        nonlocal called
+        called = True
+
+        class FakeResult:
+            returncode = 0
+
+        return FakeResult()
+
+    monkeypatch.setattr(
+        "voidscan.scanners.discovery.subprocess.run",
+        fake_run,
+    )
+
+    event = threading.Event()
+    event.set()
+
+    assert host_is_up("127.0.0.1", cancel_event=event) is False
+    assert called is False
+
+
 def test_discover_hosts(monkeypatch):
-    def fake_host_is_up(host):
+    def fake_host_is_up(host, timeout=1, cancel_event=None):
         return host == "192.168.1.1"
 
     monkeypatch.setattr(
@@ -81,7 +108,7 @@ def test_network_host_count():
 def test_discover_hosts_rejects_large_ipv4_networks(monkeypatch):
     called = False
 
-    def fake_host_is_up(host):
+    def fake_host_is_up(host, timeout=1, cancel_event=None):
         nonlocal called
         called = True
         return False
@@ -103,10 +130,39 @@ def test_discover_hosts_rejects_large_ipv6_networks(monkeypatch):
         discover_hosts("2001:db8::/64")
 
 
+def test_discover_hosts_uses_configured_limits(monkeypatch):
+    observed = {}
+
+    def fake_host_is_up(host, timeout=1, cancel_event=None):
+        observed["timeout"] = timeout
+        return False
+
+    monkeypatch.setattr(
+        "voidscan.scanners.discovery.host_is_up",
+        fake_host_is_up,
+    )
+
+    with pytest.raises(ValueError, match="32 hosts"):
+        discover_hosts(
+            "192.168.1.0/24",
+            max_hosts=32,
+        )
+
+    result = discover_hosts(
+        "192.168.1.0/30",
+        max_hosts=32,
+        max_workers=1,
+        ping_timeout=3,
+    )
+
+    assert result.scanned == 2
+    assert observed["timeout"] == 3
+
+
 def test_discover_hosts_reports_progress(monkeypatch):
     monkeypatch.setattr(
         "voidscan.scanners.discovery.host_is_up",
-        lambda host: host.endswith(".1"),
+        lambda host, timeout=1, cancel_event=None: host.endswith(".1"),
     )
 
     events = []
@@ -120,3 +176,22 @@ def test_discover_hosts_reports_progress(monkeypatch):
 
     assert events == [(1, 2), (2, 2)]
     assert result.reachable == 1
+
+
+def test_discover_hosts_can_be_cancelled(monkeypatch):
+    event = threading.Event()
+    event.set()
+
+    def fake_host_is_up(host, timeout=1, cancel_event=None):
+        return False
+
+    monkeypatch.setattr(
+        "voidscan.scanners.discovery.host_is_up",
+        fake_host_is_up,
+    )
+
+    with pytest.raises(ScanCancelled):
+        discover_hosts(
+            "192.168.1.0/29",
+            cancel_event=event,
+        )

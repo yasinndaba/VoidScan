@@ -8,8 +8,11 @@ from typing import Any, Sequence, cast
 from rich.console import Console
 from rich.table import Table
 
-from voidscan.findings import Finding, Severity
+from voidscan import __version__
+from voidscan.findings import Finding, Severity, merge_evidence
 
+
+REPORT_SCHEMA_VERSION = 1
 
 # Most severe first, for sorting and for the summary breakdown.
 SEVERITY_ORDER = (
@@ -54,6 +57,40 @@ def _serialize_finding(
     raise TypeError(
         "Findings must be Finding instances or dictionaries."
     )
+
+
+def _deduplicate_serialized(
+    findings: Sequence[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Collapse identical serialized findings and merge their evidence."""
+
+    merged: dict[
+        tuple[str, str, str, str],
+        dict[str, Any],
+    ] = {}
+    ordered_keys: list[tuple[str, str, str, str]] = []
+
+    for finding in findings:
+        key = (
+            str(finding.get("title", "")),
+            str(finding.get("severity", "")).upper(),
+            str(finding.get("description", "")),
+            str(finding.get("recommendation", "")),
+        )
+
+        existing = merged.get(key)
+
+        if existing is None:
+            merged[key] = dict(finding)
+            ordered_keys.append(key)
+            continue
+
+        existing["evidence"] = merge_evidence(
+            str(existing.get("evidence", "")),
+            str(finding.get("evidence", "")),
+        )
+
+    return [merged[key] for key in ordered_keys]
 
 
 def _severity_counts(
@@ -145,15 +182,18 @@ def create_report(
 
     return {
         "tool": "VoidScan",
-        "version": "0.1.0",
+        "schema_version": REPORT_SCHEMA_VERSION,
+        "version": __version__,
         "scan_type": scan_type,
         "target": target,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "result": result_data,
-        "findings": [
-            _serialize_finding(finding)
-            for finding in (findings or [])
-        ],
+        "findings": _deduplicate_serialized(
+            [
+                _serialize_finding(finding)
+                for finding in (findings or [])
+            ]
+        ),
     }
 
 
@@ -328,9 +368,12 @@ def display_findings(
     """Display structured findings in the terminal."""
 
     console = Console()
-    serialized = [
-        _serialize_finding(finding) for finding in findings
-    ]
+    serialized = _deduplicate_serialized(
+        [
+            _serialize_finding(finding)
+            for finding in findings
+        ]
+    )
 
     if not serialized:
         console.print("\n[dim]Security findings: none recorded.[/dim]")

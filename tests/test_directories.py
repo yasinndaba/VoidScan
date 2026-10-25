@@ -3,6 +3,8 @@ from unittest.mock import patch
 
 import pytest
 
+from voidscan.errors import ScanTimeout
+from voidscan.process import CommandResult
 from voidscan.scanners.directories import (
     DEFAULT_WORDLIST,
     enumerate_directories,
@@ -12,6 +14,15 @@ from voidscan.scanners.directories import (
     tool_installed,
     validate_wordlist,
 )
+
+
+def make_result(command, stdout="", return_code=0):
+    return CommandResult(
+        command=list(command),
+        stdout=stdout,
+        stderr="",
+        return_code=return_code,
+    )
 
 
 def test_default_wordlist_exists():
@@ -56,16 +67,17 @@ def test_tool_installed_invalid_engine():
         tool_installed("invalid")
 
 
-@patch("voidscan.scanners.directories.subprocess.run")
+@patch("voidscan.scanners.directories.run_command")
 def test_run_ffuf(mock_run, tmp_path):
     wordlist = tmp_path / "custom.txt"
     wordlist.write_text("admin\nlogin\n")
 
-    mock_run.return_value.stdout = "admin\nlogin\n"
-    mock_run.return_value.stderr = ""
-    mock_run.return_value.returncode = 0
+    mock_run.side_effect = lambda command, **kwargs: make_result(
+        command,
+        "admin\nlogin\n",
+    )
 
-    result = run_ffuf("http://127.0.0.1", wordlist)
+    result = run_ffuf("http://127.0.0.1", wordlist, timeout=45)
 
     command = mock_run.call_args.args[0]
 
@@ -74,6 +86,7 @@ def test_run_ffuf(mock_run, tmp_path):
     assert "http://127.0.0.1/FUZZ" in command
     assert "-w" in command
     assert str(wordlist) in command
+    assert mock_run.call_args.kwargs["timeout"] == 45
 
     assert result.engine == "ffuf"
     assert result.target == "http://127.0.0.1"
@@ -85,26 +98,27 @@ def test_run_ffuf(mock_run, tmp_path):
     assert result.success is True
 
 
-@patch("voidscan.scanners.directories.subprocess.run")
+@patch("voidscan.scanners.directories.run_command")
 def test_run_dirb(mock_run, tmp_path):
     wordlist = tmp_path / "custom.txt"
     wordlist.write_text("admin\nlogin\n")
 
-    mock_run.return_value.stdout = (
-        "-----------------\n"
-        "DIRB v2.22\n"
-        "By The Dark Raver\n"
-        "-----------------\n"
-        "---- Scanning URL: http://127.0.0.1/ ----\n"
-        "+ http://127.0.0.1/admin (CODE:301|SIZE:0)\n"
-        "+ http://127.0.0.1/login (CODE:200|SIZE:42)\n"
-        "\n"
-        "-----------------\n"
-        "END_TIME: Sun Oct 25 13:43:56 2026\n"
-        "DOWNLOADED: 2 - FOUND: 2\n"
+    mock_run.return_value = make_result(
+        ["dirb"],
+        (
+            "-----------------\n"
+            "DIRB v2.22\n"
+            "By The Dark Raver\n"
+            "-----------------\n"
+            "---- Scanning URL: http://127.0.0.1/ ----\n"
+            "+ http://127.0.0.1/admin (CODE:301|SIZE:0)\n"
+            "+ http://127.0.0.1/login (CODE:200|SIZE:42)\n"
+            "\n"
+            "-----------------\n"
+            "END_TIME: Sun Oct 25 13:43:56 2026\n"
+            "DOWNLOADED: 2 - FOUND: 2\n"
+        ),
     )
-    mock_run.return_value.stderr = ""
-    mock_run.return_value.returncode = 0
 
     result = run_dirb("http://127.0.0.1", wordlist)
 
@@ -157,17 +171,15 @@ def test_enumerate_directories_missing_tool(mock_installed):
         enumerate_directories("http://127.0.0.1")
 
 
-@patch("voidscan.scanners.directories.subprocess.run")
+@patch("voidscan.scanners.directories.run_command")
 def test_run_ffuf_timeout(mock_run, tmp_path):
     wordlist = tmp_path / "custom.txt"
     wordlist.write_text("admin\n")
 
-    import subprocess
-
-    mock_run.side_effect = subprocess.TimeoutExpired(
-        cmd=["ffuf"],
-        timeout=300,
+    mock_run.side_effect = ScanTimeout(
+        "Command timed out",
+        timeout=17,
     )
 
-    with pytest.raises(RuntimeError, match="timed out"):
-        run_ffuf("http://127.0.0.1", wordlist)
+    with pytest.raises(ScanTimeout, match="timed out after 17 seconds"):
+        run_ffuf("http://127.0.0.1", wordlist, timeout=17)

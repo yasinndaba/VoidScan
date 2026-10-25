@@ -1,0 +1,7 @@
+rich>=13.0
+
+[:python_version < "3.11"]
+tomli>=2.0
+
+[test]
+pytest>=8.0

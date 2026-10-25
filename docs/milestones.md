@@ -121,9 +121,17 @@ Completed:
 * [x] Error handling tests
 * [x] System Monitor tests
 * [x] Shell/tool dependency checks
-* [x] Graceful Ctrl+C and EOF handling
+* [x] Graceful Ctrl+C, cancellation, and EOF handling
 * [x] Manual full-workflow validation
-* [x] 174 automated tests passing
+* [x] Worker-thread scans with live progress and elapsed time
+* [x] Ctrl+C offers cancel or exit and terminates child processes
+* [x] TOML configuration with environment and CLI overrides
+* [x] Configurable timeouts and host-discovery limits
+* [x] Amass partial results with optional Subfinder retry
+* [x] Findings deduplication with merged evidence
+* [x] Versioned report schema
+* [x] Consistent empty, timeout, missing-tool, and invalid-input states
+* [x] 215 automated tests passing
 
 Remaining:
 

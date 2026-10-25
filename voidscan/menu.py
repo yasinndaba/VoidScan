@@ -2,25 +2,22 @@
 
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import (
-    BarColumn,
-    MofNCompleteColumn,
-    Progress,
-    SpinnerColumn,
-    TextColumn,
-    TimeElapsedColumn,
-)
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
 from rich.text import Text
 
 from voidscan import __version__
-from voidscan.config import Config
+from voidscan.config import Config, get_config
 from voidscan.dependencies import is_tool_installed
+from voidscan.errors import ScanCancelled, ScanTimeout
+from voidscan.execution import run_with_progress
 from voidscan.targets import TargetManager
 from voidscan.scanners.nmap import run_nmap
 from voidscan.scanners.discovery import discover_hosts, network_host_count
-from voidscan.scanners.subdomains import enumerate_subdomains
+from voidscan.scanners.subdomains import (
+    enumerate_subdomains,
+    merge_subdomain_results,
+)
 from voidscan.validators import (
     is_valid_hostname,
     target_host,
@@ -65,6 +62,76 @@ def print_result_cap(
         "The full list is included in the saved report.[/dim]"
     )
 
+
+def show_scan_cancelled(
+    title: str = "Scan Cancelled",
+) -> None:
+    """Display the consistent panel shown after a cancelled scan."""
+
+    console.print(
+        Panel(
+            "[yellow]The scan was cancelled. "
+            "No results were saved.[/yellow]",
+            title=title,
+            border_style="yellow",
+        )
+    )
+
+
+def show_scan_failure(
+    title: str,
+    exc: Exception,
+) -> None:
+    """Display a clear panel for invalid input, missing tools, or errors."""
+
+    message = str(exc)
+    panel_title = title
+    border_style = "red"
+
+    if isinstance(exc, ScanTimeout) or "timed out" in message.lower():
+        panel_title = "Scan Timed Out"
+        border_style = "yellow"
+    elif "not installed" in message or "could not be found" in message:
+        panel_title = "Missing Tool"
+        border_style = "yellow"
+    elif isinstance(exc, ValueError):
+        panel_title = "Invalid Input"
+        border_style = "red"
+
+    console.print(
+        Panel(
+            f"[bold red]{message}[/bold red]"
+            if border_style == "red"
+            else f"[bold yellow]{message}[/bold yellow]",
+            title=panel_title,
+            border_style=border_style,
+        )
+    )
+
+
+def _run_subdomain_scan(
+    domain: str,
+    engine: str,
+    config: Config,
+):
+    """Run one subdomain engine with its configured timeout."""
+
+    timeout = (
+        config.amass_timeout
+        if engine == "amass"
+        else config.subfinder_timeout
+    )
+
+    return run_with_progress(
+        f"Running {engine.title()}",
+        lambda ctx: enumerate_subdomains(
+            domain,
+            engine,
+            timeout=timeout,
+            cancel_event=ctx.cancel_event,
+        ),
+        console=console,
+    )
 
 
 def show_banner() -> None:
@@ -123,7 +190,7 @@ def show_main_menu() -> str:
 def target_manager() -> None:
     """Run the interactive target manager."""
 
-    config = Config()
+    config = get_config()
     config.create_directories()
 
     manager = TargetManager(config.target_file)
@@ -256,7 +323,7 @@ def target_manager() -> None:
 def network_scan() -> None:
     """Run an interactive Nmap scan."""
 
-    config = Config()
+    config = get_config()
     config.create_directories()
 
     manager = TargetManager(config.target_file)
@@ -372,7 +439,16 @@ def network_scan() -> None:
         )
     )
     try:
-        result = run_nmap(scan_target, profile)
+        result = run_with_progress(
+            f"Running Nmap {profile} scan",
+            lambda ctx: run_nmap(
+                scan_target,
+                profile,
+                timeout=config.nmap_timeout,
+                cancel_event=ctx.cancel_event,
+            ),
+            console=console,
+        )
 
         console.print()
 
@@ -387,6 +463,16 @@ def network_scan() -> None:
 
             findings = analyze_nmap_result(result)
             display_findings(findings)
+
+            if not findings:
+                console.print(
+                    Panel(
+                        "[yellow]No open ports or services were "
+                        "detected.[/yellow]",
+                        title="No Results",
+                        border_style="yellow",
+                    )
+                )
 
             save_json = Confirm.ask(
                 "Save scan results as JSON report?"
@@ -455,14 +541,11 @@ def network_scan() -> None:
                 )
             )
 
+    except ScanCancelled:
+        show_scan_cancelled("Network Scan")
+
     except (RuntimeError, ValueError) as exc:
-        console.print(
-            Panel(
-                f"[bold red]{exc}[/bold red]",
-                title="Scan Error",
-                border_style="red",
-            )
-        )
+        show_scan_failure("Scan Error", exc)
 
     console.input("\nPress Enter to return to the menu...")
     
@@ -472,7 +555,7 @@ def live_host_discovery() -> None:
 
     show_banner()
     
-    config = Config()
+    config = get_config()
     config.create_directories()
 
     console.print(
@@ -520,37 +603,26 @@ def live_host_discovery() -> None:
     )
 
     try:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("{task.description}"),
-            BarColumn(),
-            MofNCompleteColumn(),
-            TimeElapsedColumn(),
-            console=console,
-            transient=True,
-        ) as progress:
-            task = progress.add_task(
-                "Scanning hosts",
-                total=total_hosts,
-            )
-
-            result = discover_hosts(
+        result = run_with_progress(
+            "Discovering hosts",
+            lambda ctx: discover_hosts(
                 network,
-                on_progress=lambda completed, total: progress.update(
-                    task,
-                    completed=completed,
-                    total=total,
-                ),
-            )
-
-    except ValueError as exc:
-        console.print(
-            Panel(
-                f"[bold red]{exc}[/bold red]",
-                title="Invalid Network",
-                border_style="red",
-            )
+                on_progress=ctx.update_progress,
+                max_hosts=config.max_hosts,
+                max_workers=config.discovery_workers,
+                ping_timeout=config.ping_timeout,
+                cancel_event=ctx.cancel_event,
+            ),
+            console=console,
         )
+
+    except ScanCancelled:
+        show_scan_cancelled("Live Host Discovery")
+        console.input("\nPress Enter to return to the menu...")
+        return
+
+    except (RuntimeError, ValueError) as exc:
+        show_scan_failure("Discovery Error", exc)
         console.input("\nPress Enter to return to the menu...")
         return
 
@@ -608,7 +680,7 @@ def live_host_discovery() -> None:
             try:
                 report_path = save_json_report(
                     report=report,
-                    output_directory=Config().report_dir,
+                    output_directory=config.report_dir,
                 )
 
                 console.print(
@@ -628,7 +700,7 @@ def live_host_discovery() -> None:
             try:
                 html_path = save_html_report(
                     report=report,
-                    output_directory=Config().report_dir,
+                    output_directory=config.report_dir,
                 )
 
                 console.print(
@@ -651,7 +723,7 @@ def live_host_discovery() -> None:
 def subdomain_enumeration() -> None:
     """Run an interactive subdomain enumeration."""
 
-    config = Config()
+    config = get_config()
     config.create_directories()
 
     manager = TargetManager(config.target_file)
@@ -768,7 +840,7 @@ def subdomain_enumeration() -> None:
     if engine == "amass":
         engine_note = (
             "\n[yellow]Amass passive enumeration can take several "
-            "minutes. Press Ctrl+C to exit VoidScan.[/yellow]"
+            "minutes. Press Ctrl+C to cancel the scan.[/yellow]"
         )
 
     console.print(
@@ -783,27 +855,70 @@ def subdomain_enumeration() -> None:
     )
 
     try:
-        with console.status(
-            f"[cyan]Running {engine.title()}, this may take a while...[/cyan]",
-            spinner="dots",
-        ):
-            result = enumerate_subdomains(domain, engine)
+        result = _run_subdomain_scan(domain, engine, config)
+
+    except ScanCancelled:
+        show_scan_cancelled("Subdomain Enumeration")
+        console.input("\nPress Enter to return to the menu...")
+        return
 
     except (RuntimeError, ValueError) as exc:
-        console.print(
-            Panel(
-                f"[bold red]{exc}[/bold red]",
-                title="Enumeration Error",
-                border_style="red",
-            )
-        )
-
+        show_scan_failure("Enumeration Error", exc)
         console.input("\nPress Enter to return to the menu...")
         return
 
     console.print()
 
-    if result.success and result.subdomains:
+    if result.timed_out:
+        partial_count = len(result.subdomains)
+        partial_note = (
+            f"{partial_count} partial subdomain(s) were collected."
+            if partial_count
+            else "No partial subdomains were collected."
+        )
+
+        console.print(
+            Panel(
+                f"[yellow]Amass did not finish within "
+                f"{config.amass_timeout} seconds.[/yellow]\n\n"
+                f"{partial_note}",
+                title="Enumeration Timed Out",
+                border_style="yellow",
+            )
+        )
+
+        if engine == "amass" and Confirm.ask(
+            "Retry with Subfinder for faster results?"
+        ):
+            try:
+                retry = _run_subdomain_scan(
+                    domain,
+                    "subfinder",
+                    config,
+                )
+            except ScanCancelled:
+                show_scan_cancelled("Subdomain Enumeration")
+                console.input("\nPress Enter to return to the menu...")
+                return
+            except (RuntimeError, ValueError) as exc:
+                show_scan_failure("Enumeration Error", exc)
+            else:
+                result = merge_subdomain_results(result, retry)
+
+                console.print(
+                    Panel(
+                        "[green]Subfinder results merged with the "
+                        "partial Amass results.[/green]\n"
+                        f"[bold cyan]Subdomains discovered:[/bold cyan] "
+                        f"{len(result.subdomains)}",
+                        title="Retry Complete",
+                        border_style="green",
+                    )
+                )
+
+        console.print()
+
+    if result.subdomains:
         result_table = Table(
             title=f"Discovered Subdomains — {domain}",
             border_style="green",
@@ -831,6 +946,16 @@ def subdomain_enumeration() -> None:
             f"{len(result.subdomains)}"
         )
 
+    elif result.timed_out:
+        console.print(
+            Panel(
+                "[yellow]The enumeration timed out before any "
+                "subdomains were found.[/yellow]",
+                title="Enumeration Results",
+                border_style="yellow",
+            )
+        )
+
     elif result.success:
         console.print(
             Panel(
@@ -850,7 +975,11 @@ def subdomain_enumeration() -> None:
         )
     )
 
-    if result.success:
+    can_report = (
+        result.success or bool(result.subdomains) or result.timed_out
+    )
+
+    if can_report:
         findings = analyze_subdomain_result(result)
         display_findings(findings)
 
@@ -918,7 +1047,7 @@ def subdomain_enumeration() -> None:
 def directory_enumeration() -> None:
     """Run an interactive directory enumeration."""
 
-    config = Config()
+    config = get_config()
     config.create_directories()
 
     manager = TargetManager(config.target_file)
@@ -1073,32 +1202,43 @@ def directory_enumeration() -> None:
         )
     )
 
-    try:
-        with console.status(
-            f"[cyan]Running {engine.upper()}, this may take a few minutes...[/cyan]",
-            spinner="dots",
-        ):
-            if wordlist is None:
-                result = enumerate_directories(
-                    target,
-                    engine,
-                )
-            else:
-                result = enumerate_directories(
-                    target,
-                    engine,
-                    wordlist,
-                )
+    engine_timeout = (
+        config.ffuf_timeout
+        if engine == "ffuf"
+        else config.dirb_timeout
+    )
 
-    except (RuntimeError, ValueError) as exc:
-        console.print(
-            Panel(
-                f"[bold red]{exc}[/bold red]",
-                title="Enumeration Error",
-                border_style="red",
+    def run_directory_enumeration(ctx):
+        if wordlist is None:
+            return enumerate_directories(
+                target,
+                engine,
+                timeout=engine_timeout,
+                cancel_event=ctx.cancel_event,
             )
+
+        return enumerate_directories(
+            target,
+            engine,
+            wordlist,
+            timeout=engine_timeout,
+            cancel_event=ctx.cancel_event,
         )
 
+    try:
+        result = run_with_progress(
+            f"Running {engine.upper()}",
+            run_directory_enumeration,
+            console=console,
+        )
+
+    except ScanCancelled:
+        show_scan_cancelled("Directory Enumeration")
+        console.input("\nPress Enter to return to the menu...")
+        return
+
+    except (RuntimeError, ValueError) as exc:
+        show_scan_failure("Enumeration Error", exc)
         console.input("\nPress Enter to return to the menu...")
         return
 
@@ -1221,7 +1361,7 @@ def directory_enumeration() -> None:
 def ip_information() -> None:
     """Display information about an IP address or hostname."""
 
-    config = Config()
+    config = get_config()
     config.create_directories()
 
     manager = TargetManager(config.target_file)
@@ -1289,14 +1429,7 @@ def ip_information() -> None:
             result = get_ip_info(target)
 
     except ValueError as exc:
-        console.print(
-            Panel(
-                f"[bold red]{exc}[/bold red]",
-                title="IP Information Error",
-                border_style="red",
-            )
-        )
-
+        show_scan_failure("IP Information Error", exc)
         console.input("\nPress Enter to return to the menu...")
         return
 
@@ -1445,7 +1578,7 @@ def view_logs() -> None:
 
     show_banner()
 
-    config = Config()
+    config = get_config()
     config.create_directories()
 
     log_file = config.log_dir / "voidscan.log"
@@ -1488,7 +1621,7 @@ def settings() -> None:
 
     show_banner()
 
-    config = Config()
+    config = get_config()
     config.create_directories()
 
     config_table = Table(
@@ -1500,10 +1633,28 @@ def settings() -> None:
     config_table.add_column("Value")
 
     config_table.add_row("Version", __version__)
+    config_table.add_row("Config file", str(config.config_file))
     config_table.add_row("Data directory", str(config.data_dir))
     config_table.add_row("Log directory", str(config.log_dir))
     config_table.add_row("Report directory", str(config.report_dir))
     config_table.add_row("Target file", str(config.target_file))
+    config_table.add_row(
+        "Timeouts (s)",
+        (
+            f"Nmap {config.nmap_timeout} · FFUF {config.ffuf_timeout} · "
+            f"DIRB {config.dirb_timeout} · "
+            f"Subfinder {config.subfinder_timeout} · "
+            f"Amass {config.amass_timeout}"
+        ),
+    )
+    config_table.add_row(
+        "Discovery limits",
+        (
+            f"{config.max_hosts} hosts · "
+            f"{config.discovery_workers} workers · "
+            f"{config.ping_timeout}s ping timeout"
+        ),
+    )
 
     console.print(config_table)
 
@@ -1529,8 +1680,9 @@ def settings() -> None:
 
     console.print(
         Panel(
-            "[dim]Settings are currently read-only. Configuration and "
-            "targets live under the data directory shown above.[/dim]",
+            "[dim]Settings are read from the TOML file shown above. "
+            "Environment variables and command-line flags can override "
+            "them. Restart VoidScan after editing the file.[/dim]",
             border_style="yellow",
         )
     )

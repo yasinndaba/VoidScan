@@ -4,43 +4,62 @@ All notable changes to VoidScan will be documented here.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.2.0] - 2026-10-25
+
 ### Added
 
-* Structured security findings in JSON and HTML reports
-* Severity levels (`INFO`, `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`)
-* Findings analyzers for Nmap, host discovery, subdomains, directory enumeration, and IP information
+* Scans run on a worker thread, so the menu stays responsive
+* Live progress with elapsed time for Nmap, FFUF, DIRB, Subfinder, Amass, and host discovery
+* Ctrl+C during a scan offers **cancel** or **exit** instead of dropping straight out of the menu
+* Cancellation terminates the active process group within two seconds and leaves no orphaned tools
+* Reusable subprocess runner with timeout, heartbeat, and process-group cleanup
+* TOML configuration at `~/.voidscan/config.toml`, with per-setting validation and safe fallbacks
+* `VOIDSCAN_*` environment overrides and `--config`, `--data-dir`, `--log-dir`, and `--report-dir` flags
+* Configurable per-tool timeouts; defaults preserve the previous values
+* Configurable host-discovery limit, worker count, and ping timeout
+* Startup configuration warnings that do not stop VoidScan
+* Partial Amass results on timeout, plus an optional Subfinder retry whose results merge into `amass+subfinder`
+* Findings deduplication that collapses repeated findings and keeps every unique evidence line
+* `schema_version` in every JSON and HTML report, with a test that locks the report shape
+* Consistent panels for empty results, timeouts, missing tools, and invalid input
+* `config.example.toml` as a documented starting point
 * Findings tables in terminal output after each scan
 * Findings section in HTML reports, with severity badges and escaped evidence
 * Terminal report summary shown after saving a report
-* Report summaries report finding counts and a severity breakdown
-* HTML reporter tests, subdomain scanner tests, and discovery scanner tests
 * URL targets and bare-host directory enumeration
 * Startup dependency warnings and external tool status in Settings
 * In-app log viewer
 * Non-root TCP connect fallback for Nmap scan profiles
 * Open-port findings for all services, with risk-based severities
-* Concurrent host discovery with a progress bar and a 4096-host cap
-* Unique timestamped HTML report filenames
+* Unique timestamped JSON and HTML report filenames
 * Graceful Ctrl+D/EOF handling
-* Tests for URL targets, non-root scans, DIRB/Amass parsing, discovery limits, and report filenames
 * Prioritized roadmap for the remaining reliability, quality, and v1.0 work
 
 ### Changed
 
-* A report is now built once per scan and reused for both JSON and HTML output
-* Report summaries now count findings even when there are none
+* Every external tool call now goes through the cancellable process runner
+* Amass `-timeout` is derived from the configured timeout in seconds
+* Configuration precedence is defaults, then `config.toml`, then environment variables, then CLI flags
+* Report `version` now comes from the package version instead of a literal
+* A report is built once per scan and reused for both JSON and HTML output
+* Report summaries count findings even when there are none
 * DIRB and FFUF results are reported as full URLs instead of raw tool lines
 * Amass and Subfinder output is filtered to valid hostnames
 * Terminal result tables are capped at 50 rows; full results remain in reports
-* Logging now writes to `~/.voidscan/logs/voidscan.log` and records scan commands
-* `rich` is declared as a runtime dependency, with a `test` extra for pytest
-* README now documents installation, usage, target types, and limits
-* Test suite consolidated under `tests/`; **174 tests passing**
+* Logging writes to `~/.voidscan/logs/voidscan.log` and records scan commands
+* `rich` is a runtime dependency, with a `test` extra for pytest and a `tomli` fallback on Python 3.10
+* README documents configuration, cancellation, timeouts, discovery limits, and the report schema
+* Test suite expanded and consolidated under `tests/`; **215 tests passing**
 
 ### Fixed
 
-* Directory Enumeration is reachable: URL targets are accepted, and bare hosts
-  fall back to `http://`
+* Long scans no longer block the menu or appear hung
+* Ctrl+C no longer exits VoidScan or leaves child processes running
+* Amass timeouts no longer discard partial subdomain output
+* Repeated findings no longer appear multiple times in terminal, JSON, or HTML output
+* Directory Enumeration is reachable: URL targets are accepted, and bare hosts fall back to `http://`
 * Nmap findings no longer miss open ports whose service is not SSH/HTTP/HTTPS
 * Standard and Full Nmap profiles work without root privileges
 * DIRB banner/footer lines are no longer counted as discovered content
@@ -51,6 +70,7 @@ All notable changes to VoidScan will be documented here.
 
 ### Removed
 
+* Hard-coded timeouts and discovery limits from individual scanners
 * Duplicate `voidscan/tests/` tree, superseded by `tests/`
 * Unused placeholder module helper
 

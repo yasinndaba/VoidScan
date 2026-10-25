@@ -3,11 +3,17 @@
 import logging
 import os
 import shutil
-import subprocess
+import threading
 from dataclasses import dataclass
+from typing import Callable
+
+from voidscan.errors import ScanTimeout
+from voidscan.process import run_command
 
 
 logger = logging.getLogger("voidscan.scanners.nmap")
+
+NMAP_TIMEOUT = 300
 
 
 SCAN_PROFILES = {
@@ -63,7 +69,14 @@ def build_nmap_command(target: str, profile: str) -> list[str]:
     return ["nmap", *profiles[profile], target]
 
 
-def run_nmap(target: str, profile: str = "standard") -> NmapResult:
+def run_nmap(
+    target: str,
+    profile: str = "standard",
+    *,
+    timeout: float | None = None,
+    cancel_event: threading.Event | None = None,
+    on_heartbeat: Callable[[float], None] | None = None,
+) -> NmapResult:
     """Run Nmap against a validated target."""
 
     if not nmap_installed():
@@ -72,21 +85,24 @@ def run_nmap(target: str, profile: str = "standard") -> NmapResult:
         )
 
     command = build_nmap_command(target, profile)
+    resolved_timeout = NMAP_TIMEOUT if timeout is None else timeout
 
     logger.info("Running Nmap command: %s", " ".join(command))
 
     try:
-        process = subprocess.run(
+        process = run_command(
             command,
-            capture_output=True,
-            text=True,
-            timeout=300,
-            check=False,
+            timeout=resolved_timeout,
+            cancel_event=cancel_event,
+            on_heartbeat=on_heartbeat,
         )
-    except subprocess.TimeoutExpired as exc:
+    except ScanTimeout as exc:
         logger.warning("Nmap scan timed out for target %s", target)
-        raise RuntimeError(
-            "Nmap scan timed out after 300 seconds."
+        raise ScanTimeout(
+            f"Nmap scan timed out after {resolved_timeout:g} seconds.",
+            timeout=resolved_timeout,
+            stdout=exc.stdout,
+            stderr=exc.stderr,
         ) from exc
     except OSError as exc:
         logger.error("Failed to execute Nmap: %s", exc)
@@ -101,7 +117,7 @@ def run_nmap(target: str, profile: str = "standard") -> NmapResult:
 
     logger.info(
         "Nmap finished with exit code %s for target %s",
-        process.returncode,
+        process.return_code,
         target,
     )
 
@@ -109,6 +125,6 @@ def run_nmap(target: str, profile: str = "standard") -> NmapResult:
         target=target,
         command=command,
         output=output,
-        return_code=process.returncode,
-        success=process.returncode == 0,
+        return_code=process.return_code,
+        success=process.return_code == 0,
     )

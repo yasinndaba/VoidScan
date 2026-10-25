@@ -8,6 +8,7 @@ import pytest
 
 from voidscan.findings import Finding, Severity
 from voidscan.reporter import (
+    REPORT_SCHEMA_VERSION,
     build_report_summary,
     create_report,
     display_findings,
@@ -48,13 +49,37 @@ def test_create_report_with_dataclass():
     )
 
     assert report["tool"] == "VoidScan"
-    assert report["version"] == "0.1.0"
+    assert report["version"] == "0.2.0"
     assert report["scan_type"] == "Network Scan"
     assert report["target"] == "192.168.1.10"
     assert "timestamp" in report
 
     assert report["result"]["success"] is True
     assert report["result"]["findings"] == ["Port 22 open"]
+
+
+def test_report_schema_shape_is_locked():
+    result = MockScanResult(success=True, findings=[])
+
+    report = create_report(
+        scan_type="Network Scan",
+        target="192.168.1.10",
+        result=result,
+        findings=[make_finding()],
+    )
+
+    assert REPORT_SCHEMA_VERSION == 1
+    assert report["schema_version"] == REPORT_SCHEMA_VERSION
+    assert list(report) == [
+        "tool",
+        "schema_version",
+        "version",
+        "scan_type",
+        "target",
+        "timestamp",
+        "result",
+        "findings",
+    ]
 
 
 def test_create_report_with_dictionary():
@@ -133,6 +158,25 @@ def test_create_report_with_structured_findings():
     assert finding["title"] == "SSH Service Detected"
     assert finding["severity"] == "INFO"
     assert finding["evidence"] == "22/tcp open ssh"
+
+
+def test_create_report_deduplicates_findings_and_merges_evidence():
+    result = MockScanResult(success=True, findings=[])
+
+    report = create_report(
+        scan_type="Network Scan",
+        target="192.168.1.10",
+        result=result,
+        findings=[
+            make_finding(evidence="22/tcp open ssh"),
+            make_finding(evidence="2222/tcp open ssh"),
+        ],
+    )
+
+    assert len(report["findings"]) == 1
+    assert report["findings"][0]["evidence"] == (
+        "22/tcp open ssh\n2222/tcp open ssh"
+    )
 
 
 def test_create_report_defaults_to_empty_findings():

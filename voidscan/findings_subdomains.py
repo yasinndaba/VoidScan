@@ -7,7 +7,7 @@ from voidscan.scanners.subdomains import SubdomainResult
 def analyze_subdomain_result(result: SubdomainResult) -> list[Finding]:
     """Convert a subdomain enumeration result into structured findings."""
 
-    if not result.success:
+    if not (result.success or result.subdomains):
         return []
 
     findings: list[Finding] = []
@@ -15,14 +15,22 @@ def analyze_subdomain_result(result: SubdomainResult) -> list[Finding]:
     if not result.subdomains:
         return findings
 
+    description = (
+        f"{len(result.subdomains)} subdomain(s) were discovered "
+        f"for the target domain."
+    )
+
+    if result.timed_out:
+        description += (
+            " The enumeration timed out, so these results may be "
+            "incomplete."
+        )
+
     findings.append(
         Finding(
             title="Subdomains Discovered",
             severity=Severity.INFO,
-            description=(
-                f"{len(result.subdomains)} subdomain(s) were discovered "
-                f"for the target domain."
-            ),
+            description=description,
             evidence="\n".join(result.subdomains),
             recommendation=(
                 "Review discovered subdomains and verify that each exposed "

@@ -3,9 +3,12 @@
 import ipaddress
 import logging
 import subprocess
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from typing import Callable
+
+from voidscan.errors import ScanCancelled
 
 
 logger = logging.getLogger("voidscan.scanners.discovery")
@@ -62,8 +65,15 @@ def network_host_count(network: str) -> int:
     return validated.num_addresses - 1
 
 
-def host_is_up(host: str, timeout: int = PING_TIMEOUT) -> bool:
+def host_is_up(
+    host: str,
+    timeout: int = PING_TIMEOUT,
+    cancel_event: threading.Event | None = None,
+) -> bool:
     """Check whether a host responds to an ICMP ping."""
+
+    if cancel_event is not None and cancel_event.is_set():
+        return False
 
     try:
         result = subprocess.run(
@@ -83,6 +93,11 @@ def host_is_up(host: str, timeout: int = PING_TIMEOUT) -> bool:
 def discover_hosts(
     network: str,
     on_progress: Callable[[int, int], None] | None = None,
+    *,
+    max_hosts: int = MAX_HOSTS,
+    max_workers: int = MAX_WORKERS,
+    ping_timeout: int = PING_TIMEOUT,
+    cancel_event: threading.Event | None = None,
 ) -> HostDiscoveryResult:
     """Discover reachable hosts in a network.
 
@@ -93,34 +108,56 @@ def discover_hosts(
     validated_network = validate_network(network)
     total_hosts = network_host_count(network)
 
-    if total_hosts > MAX_HOSTS:
+    if max_hosts < 1:
+        raise ValueError("Discovery host limit must be at least 1.")
+
+    if total_hosts > max_hosts:
         raise ValueError(
             f"Network is too large ({total_hosts} hosts). "
-            f"Scan {MAX_HOSTS} hosts or fewer, such as a /20 network."
+            f"Scan {max_hosts} hosts or fewer, such as a /20 network."
         )
 
     hosts = [str(host) for host in validated_network.hosts()]
+    worker_count = max(1, min(max_workers, len(hosts)))
 
     logger.info(
         "Starting host discovery for %s (%s hosts, %s workers)",
         validated_network,
         len(hosts),
-        min(MAX_WORKERS, max(1, len(hosts))),
+        worker_count,
     )
 
     reachable: set[str] = set()
     completed = 0
 
     if hosts:
-        with ThreadPoolExecutor(
-            max_workers=min(MAX_WORKERS, len(hosts))
-        ) as executor:
+        with ThreadPoolExecutor(max_workers=worker_count) as executor:
             futures = {
-                executor.submit(host_is_up, host): host
+                executor.submit(
+                    host_is_up,
+                    host,
+                    ping_timeout,
+                    cancel_event,
+                ): host
                 for host in hosts
             }
 
             for future in as_completed(futures):
+                if (
+                    cancel_event is not None
+                    and cancel_event.is_set()
+                ):
+                    for pending in futures:
+                        pending.cancel()
+
+                    logger.info(
+                        "Host discovery cancelled for %s",
+                        validated_network,
+                    )
+                    raise ScanCancelled(
+                        "Host discovery cancelled by user."
+                    )
+
                 completed += 1
 
                 try:

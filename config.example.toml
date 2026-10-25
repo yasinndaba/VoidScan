@@ -1,0 +1,30 @@
+# VoidScan configuration example.
+#
+# Copy this file to ~/.voidscan/config.toml and edit the values you need.
+# Missing settings use the built-in defaults below. Invalid values produce a
+# startup warning and fall back to the default for that setting only.
+#
+# Precedence (later wins):
+#   defaults -> config.toml -> VOIDSCAN_* environment variables -> CLI flags
+
+[paths]
+# Every other path defaults to a location under data_dir when omitted.
+data_dir = "~/.voidscan"
+log_dir = "~/.voidscan/logs"
+report_dir = "~/.voidscan/reports"
+target_file = "~/.voidscan/targets.txt"
+
+[timeouts]
+# Per-tool timeouts in seconds. Values must be at least 1.
+nmap = 300
+ffuf = 300
+dirb = 300
+subfinder = 300
+amass = 900
+
+[discovery]
+# Guard rails for live host discovery. Values must be at least 1.
+# A /20 network has 4094 usable hosts and fits within the default cap.
+max_hosts = 4096
+workers = 32
+ping_timeout = 1

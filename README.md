@@ -6,7 +6,9 @@ The project is being developed as a cybersecurity portfolio project to demonstra
 
 ## Current Status
 
-Version: 0.1.0
+Version: 0.2.0
+
+Release v0.2 — Reliable scans: Complete
 
 Milestone 0 — Project Foundation: Complete
 
@@ -28,10 +30,12 @@ Milestone 6 — Testing & Quality: In Progress
 
 - Target validation for IP addresses, hostnames, and HTTP(S) URLs
 - Target management
-- Application configuration
+- TOML configuration file with environment and command-line overrides
+- Scans run on a worker thread with live progress and an elapsed-time heartbeat
+- Cancellable scans: Ctrl+C offers **cancel** or **exit** and terminates child processes
 - Structured logging with an in-app log viewer
-- Startup dependency checks
-- Read-only settings and external tool status panel
+- Startup dependency checks and configuration warnings
+- Settings panel with paths, timeouts, discovery limits, and tool status
 - Error handling
 - Scan profiles with non-root fallbacks
 
@@ -40,18 +44,21 @@ Milestone 6 — Testing & Quality: In Progress
 - Nmap network scanning
 - Quick, standard, and full scan profiles
 - Safe subprocess execution
-- Nmap timeout handling
+- Configurable Nmap timeout
 - Live host discovery
 - CIDR network validation
+- Configurable host limit, worker count, and ping timeout
 
 ### Web Reconnaissance
 
 - Subdomain enumeration
 - Subfinder integration
-- Amass integration
+- Amass integration, including partial results on timeout
+- Optional Subfinder retry after an Amass timeout
 - Directory enumeration
 - FFUF integration
 - DIRB integration
+- Configurable FFUF and DIRB timeouts
 - URL validation
 - Wordlist validation
 
@@ -77,7 +84,7 @@ Milestone 6 — Testing & Quality: In Progress
 
 ### Reporting
 
-- Standardized report structure
+- Standardized report structure with `schema_version`
 - JSON report generation
 - HTML report generation
 - Terminal report summaries
@@ -87,7 +94,9 @@ Milestone 6 — Testing & Quality: In Progress
 - Structured security findings with severity levels
 - Findings analyzers for Nmap, host discovery, subdomains, directories, and IP information
 - Risk-based severity for exposed services (Telnet, SMB, RDP, databases, and more)
+- Findings deduplication that merges all unique evidence
 - Findings included in JSON and HTML reports
+- Consistent empty, timeout, missing-tool, and invalid-input panels
 - Report storage under `~/.voidscan/reports/`
 
 ## Architecture
@@ -142,7 +151,7 @@ The menu provides:
 6. System Monitor — local host, CPU, memory, disk, and uptime
 7. Target Manager — add, list, remove, and clear targets
 8. View Logs — recent entries from `~/.voidscan/logs/voidscan.log`
-9. Settings — configuration paths and external tool status
+9. Settings — paths, per-tool timeouts, discovery limits, and tool status
 
 ### Target types
 
@@ -163,22 +172,80 @@ The menu provides:
 - Without root, VoidScan automatically uses a TCP connect scan (`-sT`)
   instead of a SYN scan (`-sS`) so every profile still works.
 
+## Configuration
+
+VoidScan reads `~/.voidscan/config.toml` at startup. Missing settings use safe
+defaults, and invalid values produce a startup warning while the remaining
+settings still load. A commented starting point is available in
+[`config.example.toml`](config.example.toml).
+
+```toml
+[paths]
+data_dir = "~/.voidscan"
+log_dir = "~/.voidscan/logs"
+report_dir = "~/.voidscan/reports"
+target_file = "~/.voidscan/targets.txt"
+
+[timeouts]
+nmap = 300
+ffuf = 300
+dirb = 300
+subfinder = 300
+amass = 900
+
+[discovery]
+max_hosts = 4096
+workers = 32
+ping_timeout = 1
+```
+
+Settings are applied in this order, with later sources winning:
+
+1. Built-in defaults
+2. `~/.voidscan/config.toml`
+3. `VOIDSCAN_*` environment variables
+4. Command-line flags
+
+Environment overrides include `VOIDSCAN_CONFIG`, `VOIDSCAN_DATA_DIR`,
+`VOIDSCAN_NMAP_TIMEOUT`, `VOIDSCAN_MAX_HOSTS`, and
+`VOIDSCAN_DISCOVERY_WORKERS`. Run `voidscan --help` for the available flags:
+
+```bash
+voidscan --config ./lab.toml --data-dir ./lab-data
+```
+
+Restart VoidScan after editing the configuration file. The Settings panel
+shows the active file and effective values.
+
+### Cancelling a scan
+
+Long-running scans show elapsed time and progress. Press **Ctrl+C** while a
+scan is running to choose **cancel** (stop the scan and stay in VoidScan) or
+**exit** (leave VoidScan). Active child processes are terminated promptly, and
+cancelled scans do not write a report.
+
 ## Logs and Reports
 
 Reports are written to `~/.voidscan/reports/` with unique timestamped names,
 for example `network_scan_20261025_120906_774999.json`. Every report includes
-a `findings` array, even when nothing was found.
+a `schema_version`, the VoidScan `version`, and a `findings` array, even when
+nothing was found.
 
 Application logs are written to `~/.voidscan/logs/voidscan.log` and can be
 read from the main menu with **View Logs**.
 
 ## Limits and Safety
 
-- Host discovery is capped at 4096 hosts per scan to prevent accidental
-  large-network scans. It runs concurrently with a bounded worker pool.
+- Host discovery is capped at 4096 hosts per scan by default to prevent
+  accidental large-network scans. The cap, worker count, and ping timeout are
+  configurable.
+- Per-tool timeouts are configurable. Nmap, FFUF, DIRB, and Subfinder default
+  to 300 seconds; Amass defaults to 900 seconds.
+- When Amass times out, its partial results are kept and VoidScan offers to
+  retry with Subfinder. The combined results are reported as
+  `amass+subfinder`.
 - Large terminal result tables are truncated to the first 50 rows. The full
   results are always included in saved reports.
-- Amass passive enumeration can take several minutes; Subfinder is faster.
 - Use VoidScan only against systems you are authorized to test.
 
 ## Testing
@@ -201,6 +268,9 @@ VoidScan/
 │   ├── cli.py
 │   ├── menu.py
 │   ├── config.py
+│   ├── errors.py
+│   ├── execution.py
+│   ├── process.py
 │   ├── logger.py
 │   ├── targets.py
 │   ├── validators.py
@@ -230,6 +300,7 @@ VoidScan/
 ├── screenshots/
 ├── main.py
 ├── pyproject.toml
+├── config.example.toml
 ├── README.md
 ├── CHANGELOG.md
 └── ROADMAP.md

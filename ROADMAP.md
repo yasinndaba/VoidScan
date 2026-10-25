@@ -1,8 +1,9 @@
 # VoidScan Roadmap
 
-Current baseline: **v0.1.0**, **174 tests passing**, Linux supported.
+Current baseline: **v0.2.0**, **215 tests passing**, Linux supported.
 
-Milestones 0–5 are complete. Milestone 6 (Testing & Quality) is in progress.
+Milestones 0–5 are complete. The v0.2 reliability milestone is complete;
+Milestone 6 (Testing & Quality) is in progress.
 This roadmap replaces the original phase list with an actionable plan for the
 remaining work, ordered by user impact rather than feature count.
 
@@ -11,20 +12,19 @@ remaining work, ordered by user impact rather than feature count.
 Working today:
 
 - Nmap scans with quick, standard, and full profiles, including non-root scans
-- Concurrent host discovery with progress and a host cap
-- Subfinder and Amass enumeration with clean output parsing
+- Scans run on a worker thread with live progress, elapsed time, and Ctrl+C cancellation
+- TOML configuration with environment and CLI overrides, configurable timeouts, and configurable discovery limits
+- Concurrent host discovery with progress and a configurable host cap
+- Subfinder and Amass enumeration with clean output parsing, partial Amass results, and Subfinder retry
 - FFUF and DIRB enumeration with full-URL results
 - IP information and system monitoring
-- Findings with severity levels in the terminal, JSON, and HTML
-- Unique timestamped JSON and HTML reports
+- Findings with severity levels in the terminal, JSON, and HTML, deduplicated with merged evidence
+- Versioned reports with unique timestamped JSON and HTML filenames
 - File logging, startup dependency checks, log viewer, and settings panel
 
 Known gaps this roadmap addresses:
 
-- Long scans block the menu and cannot be cancelled without exiting
 - External tool output is parsed as text, which makes parsers fragile
-- Amass can run for minutes and has no in-run fallback
-- Limits and timeouts are hard-coded
 - Settings cannot be edited
 - No report browser, paging, or filtering for large result sets
 - Findings are mostly presence-based, with limited risk context
@@ -128,15 +128,17 @@ Goal: a new user can install, understand, demonstrate, and trust the project.
 
 ### v0.2 — Reliable scans
 
+Status: Complete (v0.2.0, 2026-10-25).
+
 Scope: A1–A3, A5–A6, B1–B2, C3, D2, D4.
 
 Exit criteria:
 
-- A scan can be cancelled without exiting VoidScan
-- No scanner call blocks the menu
-- Timeouts and discovery limits are configurable
-- Reports carry a schema version
-- Every flow has a deliberate empty/error state
+- [x] A scan can be cancelled without exiting VoidScan
+- [x] No scanner call blocks the menu
+- [x] Timeouts and discovery limits are configurable
+- [x] Reports carry a schema version
+- [x] Every flow has a deliberate empty/error state
 
 ### v0.3 — Quality gate
 
