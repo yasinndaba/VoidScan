@@ -36,6 +36,10 @@ include = ["voidscan*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "-m 'not live'"
+markers = [
+    "live: requires the real external tools or network access; skipped by default",
+]
 
 [tool.coverage.run]
 source = ["voidscan"]

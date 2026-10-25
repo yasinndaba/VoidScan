@@ -310,6 +310,18 @@ python scripts/check_coverage.py
 `pytest --cov` fails when overall coverage drops below 85%;
 `scripts/check_coverage.py` enforces the per-package thresholds.
 
+Tests that need the real tools or network access are marked `live` and
+skipped by default. Run them on a prepared machine with:
+
+```bash
+pytest -m live
+```
+
+Continuous integration runs the lint, format, type, and coverage checks
+on Python 3.10–3.13 in GitHub Actions. A separate job builds the sdist and
+wheel, installs the wheel in a clean virtual environment, and runs
+`voidscan --version`.
+
 Integration tests under `tests/integration/` run with the rest of the
 suite. They use fake tool binaries and a loopback HTTP server, so they do
 not need the external tools or an internet connection.
@@ -367,6 +379,9 @@ VoidScan/
 ├── tests/
 ├── scripts/
 │   └── check_coverage.py
+├── .github/
+│   └── workflows/
+│       └── ci.yml
 ├── docs/
 ├── screenshots/
 ├── main.py

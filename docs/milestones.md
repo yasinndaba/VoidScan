@@ -109,7 +109,7 @@ Completed:
 
 ## Milestone 6 — Testing & Quality
 
-Status: In Progress
+Status: Complete
 
 Completed:
 
@@ -138,22 +138,20 @@ Completed:
 * [x] End-to-end integration tests for scans and reports
 * [x] First-scan authorization confirmation with a `--yes` override
 * [x] Structured Nmap XML, FFUF JSON, and Subfinder JSON parsing with text fallbacks
+* [x] Optional live-tool tests marked and skipped by default
 * [x] 313 automated tests passing
-
-Remaining:
-
-* [ ] Code quality improvements
 
 ## Milestone 7 — CI/CD
 
-Status: Planned
+Status: Complete
 
-Planned:
+Completed:
 
-* [ ] GitHub Actions
-* [ ] Automated testing
-* [ ] Linting
-* [ ] Packaging checks
+* [x] GitHub Actions CI workflow
+* [x] Python 3.10–3.13 test matrix
+* [x] Linting, formatting, and type checks
+* [x] Test suite and coverage gates
+* [x] Package build and clean-venv installation smoke test
 
 ## Milestone 8 — Version 1.0
 

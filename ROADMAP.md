@@ -1,10 +1,11 @@
 # VoidScan Roadmap
 
-Current baseline: **v0.2.0**, **313 tests passing**, **93.7% coverage**, Linux
-supported. Ruff and mypy pass on the current tree.
+Current baseline: **v0.2.0**, **313 tests passing** plus 4 optional live
+tests, **93.7% coverage**, Linux supported. Ruff and mypy pass on the
+current tree.
 
-Milestones 0–5 are complete. The v0.2 reliability milestone is complete;
-Milestone 6 (Testing & Quality) is in progress.
+Milestones 0–7 are complete. The v0.2 reliability milestone and the v0.3
+quality gate are complete; the next focus is v0.4 insight and polish.
 This roadmap replaces the original phase list with an actionable plan for the
 remaining work, ordered by user impact rather than feature count.
 
@@ -143,7 +144,7 @@ Exit criteria:
 
 ### v0.3 — Quality gate
 
-Status: In progress — A4, B4, and E1–E4 complete; E5–E7 remain.
+Status: Complete.
 
 Scope: A4, B4, E1–E7.
 
@@ -160,6 +161,9 @@ Progress:
 - [x] E2 — Coverage gate at 85% overall and 90% for scanners and reporters
 - [x] E3 — Ruff check and format pass locally
 - [x] E4 — Mypy passes on `voidscan/` with strict untyped-definition checks
+- [x] E5 — GitHub Actions matrix for Python 3.10–3.13
+- [x] E6 — Package build and clean-venv installation smoke test
+- [x] E7 — Optional live-tool tests marked and skipped by default
 - [x] B4 — First scan per session requires confirmation; `--yes` skips it
 - [x] A4 — Nmap XML, FFUF JSON, and Subfinder JSON with text fallbacks
 

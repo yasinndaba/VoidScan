@@ -17,6 +17,9 @@ All notable changes to VoidScan will be documented here.
 * `--yes` flag for scripted use that skips the authorization prompt
 * Structured Nmap XML parsing with a text fallback
 * FFUF JSON parsing and Subfinder JSON parsing, each with a text fallback
+* GitHub Actions CI matrix that runs lint, format, types, tests, and coverage on Python 3.10–3.13
+* Package smoke job that builds the sdist and wheel, installs the wheel in a clean virtual environment, and runs `voidscan --version`
+* Optional live-tool tests marked `live` and skipped by default; run them with `pytest -m live`
 
 ### Changed
 
