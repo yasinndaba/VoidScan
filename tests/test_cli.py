@@ -2,7 +2,8 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-from voidscan.cli import main
+from voidscan.cli import _apply_cli_overrides, build_parser, main
+from voidscan.config import Config
 
 
 def isolate_cli(monkeypatch, tmp_path: Path) -> MagicMock:
@@ -177,3 +178,19 @@ def test_main_applies_cli_path_overrides(
     assert applied["data_dir"] == tmp_path / "data"
     assert applied["log_dir"] == tmp_path / "logs"
     assert applied["report_dir"] == tmp_path / "reports"
+
+
+def test_yes_flag_enables_assume_yes():
+    args = build_parser().parse_args(["--yes"])
+
+    config = _apply_cli_overrides(Config(), args)
+
+    assert config.assume_yes is True
+
+
+def test_authorization_prompt_is_the_default():
+    args = build_parser().parse_args([])
+
+    config = _apply_cli_overrides(Config(), args)
+
+    assert config.assume_yes is False

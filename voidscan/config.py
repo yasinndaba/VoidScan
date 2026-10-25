@@ -70,6 +70,7 @@ class Config:
     max_hosts: int = DEFAULT_MAX_HOSTS
     discovery_workers: int = DEFAULT_DISCOVERY_WORKERS
     ping_timeout: int = DEFAULT_PING_TIMEOUT
+    assume_yes: bool = False
 
     def create_directories(self) -> None:
         """Create required VoidScan directories."""

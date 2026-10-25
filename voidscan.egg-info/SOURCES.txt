@@ -1,6 +1,7 @@
 LICENSE
 README.md
 pyproject.toml
+tests/test_authorization.py
 tests/test_cli.py
 tests/test_config.py
 tests/test_dependencies.py
@@ -25,6 +26,7 @@ tests/test_system_monitor.py
 tests/test_targets.py
 tests/test_validators.py
 voidscan/__init__.py
+voidscan/authorization.py
 voidscan/cli.py
 voidscan/config.py
 voidscan/dependencies.py

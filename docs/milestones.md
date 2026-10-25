@@ -136,7 +136,8 @@ Completed:
 * [x] Coverage gate at 85% overall and 90% for scanners and reporters
 * [x] Integration harness with fake tools and a local HTTP server
 * [x] End-to-end integration tests for scans and reports
-* [x] 295 automated tests passing
+* [x] First-scan authorization confirmation with a `--yes` override
+* [x] 303 automated tests passing
 
 Remaining:
 

@@ -68,6 +68,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Write reports to PATH.",
     )
 
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="Skip the first-scan authorization confirmation.",
+    )
+
     return parser
 
 
@@ -91,6 +97,9 @@ def _apply_cli_overrides(
             config,
             report_dir=Path(args.report_dir).expanduser(),
         )
+
+    if args.yes:
+        config = replace(config, assume_yes=True)
 
     return config
 

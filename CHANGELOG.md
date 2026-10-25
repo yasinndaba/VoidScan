@@ -13,10 +13,12 @@ All notable changes to VoidScan will be documented here.
 * Menu-flow tests covering target management, every scan flow, reports, logs, settings, and the main loop
 * Integration harness with fake external tools and a local HTTP server
 * End-to-end integration tests for Nmap, discovery, subdomains, directory enumeration, and report generation
+* First-scan authorization confirmation, remembered for the session
+* `--yes` flag for scripted use that skips the authorization prompt
 
 ### Changed
 
-* Test suite expanded to **295 tests**
+* Test suite expanded to **303 tests**
 * `pytest-cov` is part of the development extras, and `scripts/check_coverage.py` enforces per-package thresholds
 * The package now targets Python 3.10 consistently for formatting, linting, and type checking
 * TOML loading and environment overrides are fully typed and mypy-clean

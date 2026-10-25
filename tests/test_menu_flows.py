@@ -63,6 +63,10 @@ def menu_harness(
     with (
         patch("voidscan.menu.get_config", return_value=config),
         patch("voidscan.menu.TargetManager", return_value=manager),
+        patch(
+            "voidscan.menu.require_authorization",
+            return_value=True,
+        ),
         patch("voidscan.menu.Prompt.ask", side_effect=list(prompts)),
         patch("voidscan.menu.Confirm.ask", side_effect=list(confirms)),
         input_patch,

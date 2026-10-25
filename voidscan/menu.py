@@ -7,6 +7,7 @@ from rich.table import Table
 from rich.text import Text
 
 from voidscan import __version__
+from voidscan.authorization import is_authorized, mark_authorized
 from voidscan.config import Config, get_config
 from voidscan.dependencies import is_tool_installed
 from voidscan.errors import ScanCancelled, ScanTimeout
@@ -133,9 +134,34 @@ def _run_subdomain_scan(
     )
 
 
+def require_authorization(target: str, config: Config) -> bool:
+    """Confirm the user is authorized to test the target.
+
+    The confirmation is remembered for the rest of the session, so only the
+    first scan asks. ``--yes`` skips the prompt for scripted use.
+    """
+
+    if config.assume_yes or is_authorized():
+        return True
+
+    if not Confirm.ask(f"Confirm you are authorized to scan {target}?"):
+        console.print(
+            Panel(
+                "[yellow]No scan was started. VoidScan is for authorized "
+                "testing only.[/yellow]",
+                title="Authorization Required",
+                border_style="yellow",
+            )
+        )
+        return False
+
+    mark_authorized()
+
+    return True
+
+
 def show_banner() -> None:
     """Display the VoidScan banner."""
-
     console.clear()
 
     banner = r"""
@@ -423,6 +449,9 @@ def network_scan() -> None:
 
     profile = profiles[profile_choice]
 
+    if not require_authorization(scan_target, config):
+        return
+
     show_banner()
 
     console.print(
@@ -579,6 +608,9 @@ def live_host_discovery() -> None:
             )
         )
         console.input("\nPress Enter to return to the menu...")
+        return
+
+    if not require_authorization(network, config):
         return
 
     show_banner()
@@ -821,6 +853,9 @@ def subdomain_enumeration() -> None:
         return
 
     engine = engines[engine_choice]
+
+    if not require_authorization(domain, config):
+        return
 
     show_banner()
 
@@ -1165,6 +1200,9 @@ def directory_enumeration() -> None:
         if not wordlist:
             return
 
+    if not require_authorization(target, config):
+        return
+
     show_banner()
 
     selected_wordlist = "Default common.txt" if wordlist is None else wordlist
@@ -1379,6 +1417,9 @@ def ip_information() -> None:
         return
 
     target = target_host(targets[int(target_choice) - 1])
+
+    if not require_authorization(target, config):
+        return
 
     show_banner()
 

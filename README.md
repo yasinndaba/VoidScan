@@ -172,6 +172,19 @@ The menu provides:
 - Without root, VoidScan automatically uses a TCP connect scan (`-sT`)
   instead of a SYN scan (`-sS`) so every profile still works.
 
+### Authorization confirmation
+
+Before the first scan in a session, VoidScan asks you to confirm that you
+are authorized to test the selected target. The confirmation lasts for
+the rest of the session, so later scans do not ask again. Declining stops
+the scan without running any tool.
+
+For scripted or laboratory use, `--yes` skips the confirmation prompt:
+
+```bash
+voidscan --yes
+```
+
 ## Configuration
 
 VoidScan reads `~/.voidscan/config.toml` at startup. Missing settings use safe
@@ -302,6 +315,7 @@ VoidScan/
 │   ├── cli.py
 │   ├── menu.py
 │   ├── config.py
+│   ├── authorization.py
 │   ├── errors.py
 │   ├── execution.py
 │   ├── process.py
