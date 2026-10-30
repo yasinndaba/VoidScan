@@ -180,6 +180,10 @@ Exit criteria:
 - Findings carry severity policy, confidence, and better evidence
 - Scope and audit controls are available
 
+Progress:
+
+- [x] C2 — Central severity policy in `voidscan/severity.py` with table-driven tests
+
 ### v1.0 — Release
 
 Scope: F1–F5 plus any remaining P1 work.

@@ -4,7 +4,16 @@ All notable changes to VoidScan will be documented here.
 
 ## [Unreleased]
 
-Nothing yet. Next up: v0.4 — insight and polish.
+### Added
+
+* Central severity policy in `voidscan/severity.py`: the severity enum,
+  display order, colors, per-analyzer defaults, and every service and port
+  rule now live in one table-driven module with 41 dedicated tests
+
+### Changed
+
+* Nmap, discovery, subdomain, directory, and IP-information analyzers take
+  their severities from the central policy instead of defining them locally
 
 ## [0.3.0] - 2026-10-30
 

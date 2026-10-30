@@ -1,7 +1,8 @@
 """Directory enumeration security findings analyzer for VoidScan."""
 
-from voidscan.findings import Finding, Severity
+from voidscan.findings import Finding
 from voidscan.scanners.directories import DirectoryResult
+from voidscan.severity import DIRECTORY_SEVERITY
 
 
 def analyze_directory_result(result: DirectoryResult) -> list[Finding]:
@@ -16,7 +17,7 @@ def analyze_directory_result(result: DirectoryResult) -> list[Finding]:
     return [
         Finding(
             title="Web Resources Discovered",
-            severity=Severity.INFO,
+            severity=DIRECTORY_SEVERITY,
             description=(
                 f"{len(result.results)} web resource(s) were discovered "
                 f"on the target."

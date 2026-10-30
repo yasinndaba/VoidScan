@@ -11,30 +11,14 @@ from rich.console import Console
 from rich.table import Table
 
 from voidscan import __version__
-from voidscan.findings import Finding, Severity, merge_evidence
-
-REPORT_SCHEMA_VERSION = 1
-
-# Most severe first, for sorting and for the summary breakdown.
-SEVERITY_ORDER = (
-    Severity.CRITICAL,
-    Severity.HIGH,
-    Severity.MEDIUM,
-    Severity.LOW,
-    Severity.INFO,
+from voidscan.findings import Finding, merge_evidence
+from voidscan.severity import (
+    SEVERITY_COLORS,
+    SEVERITY_ORDER,
+    SEVERITY_RANK,
 )
 
-SEVERITY_RANK = {
-    severity.value: index for index, severity in enumerate(SEVERITY_ORDER)
-}
-
-SEVERITY_COLORS = {
-    "CRITICAL": "bold red",
-    "HIGH": "red",
-    "MEDIUM": "yellow",
-    "LOW": "cyan",
-    "INFO": "dim",
-}
+REPORT_SCHEMA_VERSION = 1
 
 
 def _serialize_finding(

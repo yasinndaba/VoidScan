@@ -1,7 +1,8 @@
 """IP information findings analyzer for VoidScan."""
 
-from voidscan.findings import Finding, Severity
+from voidscan.findings import Finding
 from voidscan.scanners.ip_info import IPInfoResult
+from voidscan.severity import IP_INFO_SEVERITY
 
 
 def analyze_ip_info_result(result: IPInfoResult) -> list[Finding]:
@@ -13,7 +14,7 @@ def analyze_ip_info_result(result: IPInfoResult) -> list[Finding]:
         findings.append(
             Finding(
                 title="Private IP Address Identified",
-                severity=Severity.INFO,
+                severity=IP_INFO_SEVERITY,
                 description=(
                     f"The target resolved to private IP address "
                     f"{result.address}."
@@ -30,7 +31,7 @@ def analyze_ip_info_result(result: IPInfoResult) -> list[Finding]:
         findings.append(
             Finding(
                 title="Loopback IP Address Identified",
-                severity=Severity.INFO,
+                severity=IP_INFO_SEVERITY,
                 description=(
                     f"The target resolved to loopback address "
                     f"{result.address}."
@@ -47,7 +48,7 @@ def analyze_ip_info_result(result: IPInfoResult) -> list[Finding]:
         findings.append(
             Finding(
                 title="Reserved IP Address Identified",
-                severity=Severity.INFO,
+                severity=IP_INFO_SEVERITY,
                 description=(
                     f"The target resolved to reserved IP address "
                     f"{result.address}."
@@ -64,7 +65,7 @@ def analyze_ip_info_result(result: IPInfoResult) -> list[Finding]:
         findings.append(
             Finding(
                 title="Multicast IP Address Identified",
-                severity=Severity.INFO,
+                severity=IP_INFO_SEVERITY,
                 description=(
                     f"The target resolved to multicast address "
                     f"{result.address}."
@@ -81,7 +82,7 @@ def analyze_ip_info_result(result: IPInfoResult) -> list[Finding]:
         findings.append(
             Finding(
                 title="Reverse DNS Record Identified",
-                severity=Severity.INFO,
+                severity=IP_INFO_SEVERITY,
                 description=(
                     f"The IP address {result.address} resolves to "
                     f"{result.reverse_dns}."

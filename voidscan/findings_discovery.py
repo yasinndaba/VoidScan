@@ -1,7 +1,8 @@
 """Live host discovery findings analyzer for VoidScan."""
 
-from voidscan.findings import Finding, Severity
+from voidscan.findings import Finding
 from voidscan.scanners.discovery import HostDiscoveryResult
+from voidscan.severity import DISCOVERY_SEVERITY
 
 
 def analyze_discovery_result(
@@ -15,7 +16,7 @@ def analyze_discovery_result(
     return [
         Finding(
             title="Reachable Hosts Discovered",
-            severity=Severity.INFO,
+            severity=DISCOVERY_SEVERITY,
             description=(
                 f"{result.reachable} reachable host(s) were discovered "
                 f"on the {result.network} network."

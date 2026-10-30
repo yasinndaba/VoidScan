@@ -1,7 +1,8 @@
 """Subdomain security findings analyzer for VoidScan."""
 
-from voidscan.findings import Finding, Severity
+from voidscan.findings import Finding
 from voidscan.scanners.subdomains import SubdomainResult
+from voidscan.severity import SUBDOMAIN_SEVERITY
 
 
 def analyze_subdomain_result(result: SubdomainResult) -> list[Finding]:
@@ -28,7 +29,7 @@ def analyze_subdomain_result(result: SubdomainResult) -> list[Finding]:
     findings.append(
         Finding(
             title="Subdomains Discovered",
-            severity=Severity.INFO,
+            severity=SUBDOMAIN_SEVERITY,
             description=description,
             evidence="\n".join(result.subdomains),
             recommendation=(

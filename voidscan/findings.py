@@ -2,17 +2,10 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from enum import Enum
 
+from voidscan.severity import Severity
 
-class Severity(str, Enum):
-    """Severity levels for security findings."""
-
-    INFO = "INFO"
-    LOW = "LOW"
-    MEDIUM = "MEDIUM"
-    HIGH = "HIGH"
-    CRITICAL = "CRITICAL"
+__all__ = ["Finding", "Severity", "deduplicate_findings", "merge_evidence"]
 
 
 @dataclass
