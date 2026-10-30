@@ -6,9 +6,11 @@ The project is being developed as a cybersecurity portfolio project to demonstra
 
 ## Current Status
 
-Version: 0.2.0
+Version: 0.3.0
 
 Release v0.2 — Reliable scans: Complete
+
+Release v0.3 — Quality gate: Complete
 
 Milestone 0 — Project Foundation: Complete
 
@@ -22,7 +24,9 @@ Milestone 4 — Web Reconnaissance: Complete
 
 Milestone 5 — Reporting: Complete
 
-Milestone 6 — Testing & Quality: In Progress
+Milestone 6 — Testing & Quality: Complete
+
+Milestone 7 — CI/CD: Complete
 
 ## Current Capabilities
 

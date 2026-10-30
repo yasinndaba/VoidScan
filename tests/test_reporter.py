@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from voidscan import __version__
 from voidscan.findings import Finding, Severity
 from voidscan.reporter import (
     REPORT_SCHEMA_VERSION,
@@ -48,7 +49,7 @@ def test_create_report_with_dataclass():
     )
 
     assert report["tool"] == "VoidScan"
-    assert report["version"] == "0.2.0"
+    assert report["version"] == __version__
     assert report["scan_type"] == "Network Scan"
     assert report["target"] == "192.168.1.10"
     assert "timestamp" in report

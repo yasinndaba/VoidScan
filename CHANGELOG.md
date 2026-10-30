@@ -4,6 +4,10 @@ All notable changes to VoidScan will be documented here.
 
 ## [Unreleased]
 
+Nothing yet. Next up: v0.4 — insight and polish.
+
+## [0.3.0] - 2026-10-30
+
 ### Added
 
 * Ruff linting and formatting with a `dev` extras group

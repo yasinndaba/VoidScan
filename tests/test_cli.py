@@ -2,6 +2,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+from voidscan import __version__
 from voidscan.cli import _apply_cli_overrides, build_parser, main
 from voidscan.config import Config
 
@@ -46,7 +47,7 @@ def test_main_version(capsys):
     captured = capsys.readouterr()
 
     assert exc_info.value.code == 0
-    assert "voidscan 0.2.0" in captured.out
+    assert f"voidscan {__version__}" in captured.out
 
 
 def test_main_starts_menu(monkeypatch, tmp_path):

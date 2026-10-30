@@ -1,8 +1,8 @@
 # VoidScan Roadmap
 
-Current baseline: **v0.2.0**, **313 tests passing** plus 4 optional live
-tests, **93.7% coverage**, Linux supported. Ruff and mypy pass on the
-current tree.
+Current baseline: **v0.3.0**, **313 tests passing** plus 4 optional live
+tests, **93.7% coverage**, Linux supported. Ruff, formatting, and mypy pass
+on the current tree.
 
 Milestones 0–7 are complete. The v0.2 reliability milestone and the v0.3
 quality gate are complete; the next focus is v0.4 insight and polish.
@@ -23,14 +23,16 @@ Working today:
 - Findings with severity levels in the terminal, JSON, and HTML, deduplicated with merged evidence
 - Versioned reports with unique timestamped JSON and HTML filenames
 - File logging, startup dependency checks, log viewer, and settings panel
+- Structured Nmap, FFUF, and Subfinder output with tested text fallbacks
+- First-scan authorization confirmation with a `--yes` override for scripted runs
+- Linting, formatting, type checking, coverage gates, and a CI matrix on Python 3.10–3.13
 
 Known gaps this roadmap addresses:
 
-- External tool output is parsed as text, which makes parsers fragile
 - Settings cannot be edited
 - No report browser, paging, or filtering for large result sets
 - Findings are mostly presence-based, with limited risk context
-- No integration tests, linting, type checking, or CI
+- No explicit IPv6 policy, scope file, or per-scan audit record
 - No architecture docs, screenshots, or demo lab
 
 ## Priority legend
@@ -144,7 +146,7 @@ Exit criteria:
 
 ### v0.3 — Quality gate
 
-Status: Complete.
+Status: Complete (v0.3.0, 2026-10-30).
 
 Scope: A4, B4, E1–E7.
 
