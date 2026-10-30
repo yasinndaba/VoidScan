@@ -24,7 +24,9 @@ amass = 900
 
 [discovery]
 # Guard rails for live host discovery. Values must be at least 1.
-# A /20 network has 4094 usable hosts and fits within the default cap.
+# At the default cap the broadest supported ranges are /20 for IPv4
+# (4094 hosts) and /116 for IPv6 (4095 addresses). Broader ranges are
+# rejected before any address is probed.
 max_hosts = 4096
 workers = 32
 ping_timeout = 1

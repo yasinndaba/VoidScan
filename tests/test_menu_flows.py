@@ -296,6 +296,16 @@ def test_live_host_discovery_rejects_an_invalid_network(tmp_path):
         menu.live_host_discovery()
 
 
+def test_live_host_discovery_rejects_an_oversized_network(tmp_path):
+    with (
+        menu_harness(tmp_path, prompts=["10.0.0.0/8"]),
+        patch("voidscan.menu.discover_hosts") as discovery,
+    ):
+        menu.live_host_discovery()
+
+    discovery.assert_not_called()
+
+
 def test_live_host_discovery_reports_hosts_and_saves_reports(tmp_path):
     hosts = [f"192.168.1.{index}" for index in range(1, 61)]
 

@@ -20,6 +20,14 @@ def is_valid_ip(target: str) -> bool:
         return False
 
 
+def is_ipv6(target: str) -> bool:
+    """Return True when target is an IPv6 address literal."""
+    try:
+        return ipaddress.ip_address(target.strip()).version == 6
+    except ValueError:
+        return False
+
+
 def is_valid_hostname(target: str) -> bool:
     """Return True when target is a valid hostname or domain.
 
@@ -118,7 +126,11 @@ def to_web_url(target: str) -> str:
     if is_valid_web_url(target):
         return target
 
-    if is_valid_ip(target) or is_valid_hostname(target):
+    if is_valid_ip(target):
+        host = f"[{target}]" if is_ipv6(target) else target
+        return f"http://{host}"
+
+    if is_valid_hostname(target):
         return f"http://{target}"
 
     raise ValueError(f"Invalid web target: {target}")

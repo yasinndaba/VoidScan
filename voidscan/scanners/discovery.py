@@ -53,15 +53,60 @@ def network_host_count(network: str) -> int:
 
     validated = validate_network(network)
 
-    if validated.version == 4:
-        if validated.prefixlen >= 31:
-            return validated.num_addresses
-        return validated.num_addresses - 2
+    return _host_count(validated.version, validated.prefixlen)
 
-    if validated.prefixlen >= 127:
-        return validated.num_addresses
 
-    return validated.num_addresses - 1
+def _host_count(version: int, prefixlen: int) -> int:
+    """Return the scannable host count for a family and prefix length."""
+
+    if version == 4:
+        addresses = 1 << (32 - prefixlen)
+        return addresses if prefixlen >= 31 else addresses - 2
+
+    addresses = 1 << (128 - prefixlen)
+    return addresses if prefixlen >= 127 else addresses - 1
+
+
+def _example_prefix(version: int, max_hosts: int) -> int:
+    """Return the broadest prefix length whose host count fits the cap."""
+
+    bits = 32 if version == 4 else 128
+
+    for prefixlen in range(bits + 1):
+        if _host_count(version, prefixlen) <= max_hosts:
+            return prefixlen
+
+    return bits  # pragma: no cover - a /32 or /128 always fits
+
+
+def validate_discovery_scope(
+    network: str,
+    max_hosts: int = MAX_HOSTS,
+) -> int:
+    """Validate a network and return its host count.
+
+    Oversized networks are rejected before any address is enumerated, with
+    a message that names the address family and a supported example prefix.
+    """
+
+    validated = validate_network(network)
+    total_hosts = _host_count(validated.version, validated.prefixlen)
+
+    if max_hosts < 1:
+        raise ValueError("Discovery host limit must be at least 1.")
+
+    if total_hosts <= max_hosts:
+        return total_hosts
+
+    example = _example_prefix(validated.version, max_hosts)
+    unit = "hosts" if validated.version == 4 else "addresses"
+    family = "IPv4" if validated.version == 4 else "IPv6"
+
+    raise ValueError(
+        f"{family} network is too large ({total_hosts:,} {unit}). "
+        f"Scan {max_hosts:,} {unit} or fewer, such as a /{example} "
+        "network or smaller."
+    )
 
 
 def host_is_up(
@@ -74,9 +119,19 @@ def host_is_up(
     if cancel_event is not None and cancel_event.is_set():
         return False
 
+    command = ["ping"]
+
+    try:
+        if ipaddress.ip_address(host).version == 6:
+            command.append("-6")
+    except ValueError:
+        pass
+
+    command.extend(["-c", "1", "-W", str(timeout), host])
+
     try:
         result = subprocess.run(
-            ["ping", "-c", "1", "-W", str(timeout), host],
+            command,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             check=False,
@@ -104,19 +159,11 @@ def discover_hosts(
     finishes so the menu can display progress.
     """
 
+    validate_discovery_scope(network, max_hosts)
     validated_network = validate_network(network)
-    total_hosts = network_host_count(network)
-
-    if max_hosts < 1:
-        raise ValueError("Discovery host limit must be at least 1.")
-
-    if total_hosts > max_hosts:
-        raise ValueError(
-            f"Network is too large ({total_hosts} hosts). "
-            f"Scan {max_hosts} hosts or fewer, such as a /20 network."
-        )
 
     hosts = [str(host) for host in validated_network.hosts()]
+
     worker_count = max(1, min(max_workers, len(hosts)))
 
     logger.info(

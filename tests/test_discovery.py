@@ -7,6 +7,7 @@ from voidscan.scanners.discovery import (
     discover_hosts,
     host_is_up,
     network_host_count,
+    validate_discovery_scope,
     validate_network,
 )
 
@@ -102,6 +103,97 @@ def test_network_host_count():
     assert network_host_count("192.168.1.0/24") == 254
     assert network_host_count("192.168.1.0/30") == 2
     assert network_host_count("192.168.1.1/32") == 1
+
+
+def test_network_host_count_supports_ipv6():
+    assert network_host_count("2001:db8::/64") == 2**64 - 1
+    assert network_host_count("2001:db8::/120") == 255
+    assert network_host_count("2001:db8::/127") == 2
+    assert network_host_count("2001:db8::1/128") == 1
+
+
+def test_validate_discovery_scope_reports_supported_sizes():
+    assert validate_discovery_scope("192.168.1.0/24") == 254
+    assert validate_discovery_scope("2001:db8::/120") == 255
+
+
+def test_validate_discovery_scope_names_the_address_family():
+    with pytest.raises(ValueError, match="IPv4 network is too large") as info:
+        validate_discovery_scope("10.0.0.0/8")
+
+    assert "/20" in str(info.value)
+
+    with pytest.raises(ValueError, match="IPv6 network is too large") as info:
+        validate_discovery_scope("2001:db8::/64")
+
+    assert "/116" in str(info.value)
+
+
+def test_validate_discovery_scope_suggests_a_prefix_for_configured_caps():
+    with pytest.raises(ValueError, match="32 addresses") as info:
+        validate_discovery_scope("2001:db8::/120", max_hosts=32)
+
+    assert "/123" in str(info.value)
+
+
+def test_host_is_up_uses_ipv6_flag(monkeypatch):
+    commands = []
+
+    class FakeResult:
+        returncode = 1
+
+    def fake_run(command, **kwargs):
+        commands.append(command)
+        return FakeResult()
+
+    monkeypatch.setattr(
+        "voidscan.scanners.discovery.subprocess.run",
+        fake_run,
+    )
+
+    assert host_is_up("2001:db8::1") is False
+    assert commands[0][:2] == ["ping", "-6"]
+    assert commands[0][-1] == "2001:db8::1"
+
+    assert host_is_up("127.0.0.1") is False
+    assert "-6" not in commands[1]
+
+
+def test_host_is_up_accepts_hostnames(monkeypatch):
+    commands = []
+
+    class FakeResult:
+        returncode = 0
+
+    def fake_run(command, **kwargs):
+        commands.append(command)
+        return FakeResult()
+
+    monkeypatch.setattr(
+        "voidscan.scanners.discovery.subprocess.run",
+        fake_run,
+    )
+
+    assert host_is_up("router.lab") is True
+    assert commands[0][-1] == "router.lab"
+    assert "-6" not in commands[0]
+
+
+def test_discover_hosts_supports_ipv6_within_the_cap(monkeypatch):
+    def fake_host_is_up(host, timeout=1, cancel_event=None):
+        return host == "2001:db8::2"
+
+    monkeypatch.setattr(
+        "voidscan.scanners.discovery.host_is_up",
+        fake_host_is_up,
+    )
+
+    result = discover_hosts("2001:db8::/126")
+
+    assert result.network == "2001:db8::/126"
+    assert result.scanned == 3
+    assert result.reachable == 1
+    assert result.hosts == ["2001:db8::2"]
 
 
 def test_discover_hosts_rejects_large_ipv4_networks(monkeypatch):

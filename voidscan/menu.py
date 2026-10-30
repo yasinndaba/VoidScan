@@ -28,7 +28,10 @@ from voidscan.scanners.directories import (
     DirectoryResult,
     enumerate_directories,
 )
-from voidscan.scanners.discovery import discover_hosts, network_host_count
+from voidscan.scanners.discovery import (
+    discover_hosts,
+    validate_discovery_scope,
+)
 from voidscan.scanners.ip_info import get_ip_info
 from voidscan.scanners.nmap import run_nmap
 from voidscan.scanners.subdomains import (
@@ -597,13 +600,13 @@ def live_host_discovery() -> None:
         return
 
     try:
-        total_hosts = network_host_count(network)
+        total_hosts = validate_discovery_scope(network, config.max_hosts)
     except ValueError as exc:
         show_banner()
         console.print(
             Panel(
                 f"[bold red]{exc}[/bold red]",
-                title="Invalid Network",
+                title="Network Rejected",
                 border_style="red",
             )
         )

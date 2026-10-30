@@ -9,11 +9,17 @@ All notable changes to VoidScan will be documented here.
 * Central severity policy in `voidscan/severity.py`: the severity enum,
   display order, colors, per-analyzer defaults, and every service and port
   rule now live in one table-driven module with 41 dedicated tests
+* Explicit IPv6 policy: family-aware discovery size errors with a suggested
+  prefix, `ping -6` for IPv6 probes, `nmap -6` for IPv6 literals, and
+  bracketed IPv6 URLs from `to_web_url`
 
 ### Changed
 
 * Nmap, discovery, subdomain, directory, and IP-information analyzers take
   their severities from the central policy instead of defining them locally
+* Live host discovery validates the network scope before authorization, so
+  oversized IPv4 and IPv6 ranges are rejected before enumeration
+* The README and `config.example.toml` document the supported IPv6 sizes
 
 ## [0.3.0] - 2026-10-30
 

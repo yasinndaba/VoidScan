@@ -198,6 +198,30 @@ def test_non_root_full_scan_avoids_os_detection(monkeypatch):
     assert "-sC" in command
 
 
+def test_build_nmap_command_adds_the_ipv6_flag(monkeypatch):
+    monkeypatch.setattr(
+        "voidscan.scanners.nmap.has_root_privileges",
+        lambda: False,
+    )
+
+    command = build_nmap_command("2001:db8::1", "quick")
+
+    assert command[-2:] == ["-6", "2001:db8::1"]
+    assert command.count("-6") == 1
+
+
+def test_build_nmap_command_omits_the_ipv6_flag_for_ipv4(monkeypatch):
+    monkeypatch.setattr(
+        "voidscan.scanners.nmap.has_root_privileges",
+        lambda: False,
+    )
+
+    command = build_nmap_command("192.0.2.10", "quick")
+
+    assert "-6" not in command
+    assert command[-1] == "192.0.2.10"
+
+
 def test_build_nmap_command_rejects_unknown_profile(monkeypatch):
     monkeypatch.setattr(
         "voidscan.scanners.nmap.has_root_privileges",

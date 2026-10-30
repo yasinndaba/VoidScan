@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 
 from voidscan.errors import ScanTimeout
 from voidscan.process import run_command
+from voidscan.validators import is_ipv6
 
 logger = logging.getLogger("voidscan.scanners.nmap")
 
@@ -76,7 +77,15 @@ def build_nmap_command(target: str, profile: str) -> list[str]:
         SCAN_PROFILES if has_root_privileges() else NON_ROOT_SCAN_PROFILES
     )
 
-    return ["nmap", *profiles[profile], "-oX", "-", target]
+    command = ["nmap", *profiles[profile], "-oX", "-"]
+
+    # Nmap needs an explicit family flag for IPv6 literals.
+    if is_ipv6(target):
+        command.append("-6")
+
+    command.append(target)
+
+    return command
 
 
 def parse_nmap_xml(output: str) -> list[NmapPort] | None:

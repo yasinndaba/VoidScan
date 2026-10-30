@@ -183,6 +183,7 @@ Exit criteria:
 Progress:
 
 - [x] C2 — Central severity policy in `voidscan/severity.py` with table-driven tests
+- [x] B3 — Explicit IPv6 policy: family-aware size rejection, `ping -6`, `nmap -6`, and bracketed URLs
 
 ### v1.0 — Release
 

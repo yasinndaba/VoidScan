@@ -1,5 +1,6 @@
 import pytest
 from voidscan.validators import (
+    is_ipv6,
     is_valid_hostname,
     is_valid_ip,
     is_valid_target,
@@ -117,12 +118,36 @@ def test_invalid_targets(target):
 def test_target_host_strips_url():
     assert target_host("https://example.com:8443/path?q=1") == "example.com"
     assert target_host("example.com") == "example.com"
+    assert target_host("http://[2001:db8::1]:8443/app") == "2001:db8::1"
+
+
+@pytest.mark.parametrize(
+    ("target", "expected"),
+    [
+        ("::1", True),
+        ("2001:db8::1", True),
+        ("::ffff:192.0.2.1", True),
+        ("127.0.0.1", False),
+        ("example.com", False),
+        ("[::1]", False),
+    ],
+)
+def test_is_ipv6(target, expected):
+    assert is_ipv6(target) is expected
 
 
 def test_to_web_url_keeps_urls_and_promotes_hosts():
     assert to_web_url("https://example.com/app") == "https://example.com/app"
     assert to_web_url("127.0.0.1") == "http://127.0.0.1"
     assert to_web_url("localhost") == "http://localhost"
+
+
+def test_to_web_url_brackets_ipv6_literals():
+    assert to_web_url("2001:db8::1") == "http://[2001:db8::1]"
+    assert to_web_url("::1") == "http://[::1]"
+
+    url = "https://[2001:db8::2]:8443/app"
+    assert to_web_url(url) == url
 
 
 def test_to_web_url_rejects_invalid_targets():

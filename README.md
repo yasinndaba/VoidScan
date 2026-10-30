@@ -51,7 +51,9 @@ Milestone 7 — CI/CD: Complete
 - Structured Nmap XML output for reliable port details
 - Configurable Nmap timeout
 - Live host discovery
-- CIDR network validation
+- CIDR network validation for IPv4 and IPv6
+- Family-aware size rejection before any address is probed
+- IPv6-aware ping and Nmap commands
 - Configurable host limit, worker count, and ping timeout
 
 ### Web Reconnaissance
@@ -254,9 +256,13 @@ read from the main menu with **View Logs**.
 
 ## Limits and Safety
 
-- Host discovery is capped at 4096 hosts per scan by default to prevent
-  accidental large-network scans. The cap, worker count, and ping timeout are
+- Host discovery supports IPv4 and IPv6 CIDR ranges and is capped at 4096
+  hosts per scan by default. At that cap the broadest supported ranges are
+  `/20` for IPv4 and `/116` for IPv6; broader ranges are rejected before any
+  address is probed. The cap, worker count, and ping timeout are
   configurable.
+- IPv6 literals are probed with `ping -6`, scanned with `nmap -6`, and
+  bracketed when promoted to a URL such as `http://[2001:db8::1]`.
 - Per-tool timeouts are configurable. Nmap, FFUF, DIRB, and Subfinder default
   to 300 seconds; Amass defaults to 900 seconds.
 - When Amass times out, its partial results are kept and VoidScan offers to
