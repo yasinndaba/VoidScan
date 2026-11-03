@@ -1,7 +1,7 @@
 # VoidScan Roadmap
 
-Current baseline: **v0.3.0**, **392 tests passing** plus 4 optional live
-tests, **94.2% coverage**, Linux supported. Ruff, formatting, and mypy pass
+Current baseline: **v0.3.0**, **412 tests passing** plus 4 optional live
+tests, **94.3% coverage**, Linux supported. Ruff, formatting, and mypy pass
 on the current tree.
 
 Milestones 0–7 are complete. The v0.2 reliability milestone and the v0.3
@@ -22,6 +22,7 @@ Working today:
 - IP information and system monitoring
 - Findings with severity, confidence, and plain-language context in the terminal, JSON, and HTML, deduplicated with merged evidence
 - Versioned reports with unique timestamped JSON and HTML filenames
+- Report browser that lists saved reports by date, type, target, finding count, and format, and opens JSON or HTML
 - File logging, startup dependency checks, log viewer, and settings panel
 - Structured Nmap, FFUF, and Subfinder output with tested text fallbacks
 - First-scan authorization confirmation with a `--yes` override for scripted runs
@@ -30,7 +31,7 @@ Working today:
 Known gaps this roadmap addresses:
 
 - Settings cannot be edited
-- No report browser, paging, or filtering for large result sets
+- No paging or filtering for large terminal result tables
 - Findings are still mostly presence-based; service-version awareness is pending
 - No scope file yet
 - No architecture docs, screenshots, or demo lab
@@ -187,6 +188,7 @@ Progress:
 - [x] B6 — Audit record per scan: start/end time, command, duration, and result count in logs and report metadata
 - [x] D6 — HTML report polish: severity summary, audit metadata, section nav, and per-finding anchors
 - [x] C5 — Confidence and context: every finding carries a confidence level and a "why this matters" note rendered in the terminal and HTML reports
+- [x] D1 — Report browser: saved reports are listed by date, type, target, and finding count, with JSON opened in the pager and HTML in the browser
 
 ### v1.0 — Release
 

@@ -1,6 +1,7 @@
 """Interactive menu system for VoidScan."""
 
 import logging
+import webbrowser
 
 from rich.console import Console
 from rich.panel import Panel
@@ -21,6 +22,7 @@ from voidscan.findings_ip_info import analyze_ip_info_result
 from voidscan.findings_nmap import analyze_nmap_result
 from voidscan.findings_subdomains import analyze_subdomain_result
 from voidscan.html_reporter import save_html_report
+from voidscan.report_index import ReportSummary, load_report_summaries
 from voidscan.reporter import (
     create_report,
     display_findings,
@@ -214,6 +216,7 @@ def show_main_menu() -> str:
     table.add_row("7", "Target Manager")
     table.add_row("8", "View Logs")
     table.add_row("9", "Settings")
+    table.add_row("10", "Report Browser")
     table.add_row("0", "Exit")
 
     console.print(table)
@@ -1648,6 +1651,128 @@ def system_monitor() -> None:
     console.input("\nPress Enter to return to the menu...")
 
 
+def browse_reports() -> None:
+    """List saved reports and open one in the pager or web browser."""
+
+    show_banner()
+
+    config = get_config()
+    config.create_directories()
+
+    reports = load_report_summaries(config.report_dir)
+
+    if not reports:
+        console.print(
+            Panel(
+                "[yellow]No reports have been saved yet.[/yellow]\n\n"
+                f"[dim]Report directory: {config.report_dir}[/dim]",
+                title="Report Browser",
+                border_style="yellow",
+            )
+        )
+
+        console.input("\nPress Enter to return to the menu...")
+        return
+
+    shown = reports[:MAX_RESULT_ROWS]
+
+    table = Table(title="Saved Reports", border_style="cyan")
+    table.add_column("#", style="bold cyan", width=4)
+    table.add_column("Date (UTC)", width=17)
+    table.add_column("Type")
+    table.add_column("Target")
+    table.add_column("Findings", justify="right", width=8)
+    table.add_column("Format", width=7)
+
+    for index, report in enumerate(shown, start=1):
+        date = (
+            report.timestamp.strftime("%Y-%m-%d %H:%M")
+            if report.timestamp
+            else "Unknown"
+        )
+        findings = (
+            str(report.finding_count)
+            if report.finding_count is not None
+            else "—"
+        )
+
+        table.add_row(
+            str(index),
+            date,
+            report.scan_type,
+            report.target,
+            findings,
+            report.format.upper(),
+        )
+
+    console.print(table)
+
+    if len(reports) > len(shown):
+        console.print(
+            f"\n[dim]Showing the newest {len(shown)} of "
+            f"{len(reports)} reports.[/dim]"
+        )
+
+    choice = console.input(
+        "\n[bold cyan]Report number (Enter to return):[/bold cyan] "
+    ).strip()
+
+    if not choice:
+        return
+
+    try:
+        index = int(choice)
+    except ValueError:
+        index = 0
+
+    if not 1 <= index <= len(shown):
+        console.print("\n[bold red]Invalid report number.[/bold red]")
+        console.input("\nPress Enter to return to the menu...")
+        return
+
+    _open_report(shown[index - 1])
+
+
+def _open_report(report: ReportSummary) -> None:
+    """Open a JSON report in the pager or an HTML report in a browser."""
+
+    if report.format == "json":
+        console.print(f"\n[green]Opening[/green] {report.path}")
+
+        try:
+            text = report.path.read_text(encoding="utf-8")
+        except OSError as exc:
+            console.print(
+                Panel(
+                    f"[red]{exc}[/red]",
+                    title="Report Error",
+                    border_style="red",
+                )
+            )
+        else:
+            with console.pager(styles=True):
+                console.print_json(text)
+    else:
+        opened = webbrowser.open(report.path.as_uri())
+
+        if opened:
+            console.print(
+                f"\n[green]Opened[/green] {report.path.name} "
+                "in your web browser."
+            )
+        else:
+            console.print(
+                Panel(
+                    "No web browser could be opened.\n\n"
+                    f"[dim]{report.path}[/dim]",
+                    title="Report Browser",
+                    border_style="yellow",
+                )
+            )
+
+    console.input("\nPress Enter to return to the menu...")
+
+
 def view_logs() -> None:
     """Display the most recent entries from the VoidScan log file."""
 
@@ -1794,6 +1919,9 @@ def run_menu() -> None:
 
         elif choice == "9":
             settings()
+
+        elif choice == "10":
+            browse_reports()
 
         elif choice == "0":
             console.print("\n[bold green]Session ended. Goodbye.[/bold green]")

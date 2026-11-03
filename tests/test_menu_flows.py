@@ -10,6 +10,7 @@ from voidscan import menu
 from voidscan.config import Config
 from voidscan.errors import ScanCancelled, ScanTimeout
 from voidscan.execution import ScanContext
+from voidscan.report_index import ReportSummary, load_report_summaries
 from voidscan.scanners.directories import DirectoryResult
 from voidscan.scanners.discovery import HostDiscoveryResult
 from voidscan.scanners.ip_info import IPInfoResult
@@ -830,6 +831,108 @@ def test_settings_displays_configuration_and_tool_status(tmp_path):
         menu.settings()
 
 
+# Report browser
+
+
+def write_report_file(
+    tmp_path: Path,
+    name: str = "network_scan_20261103_120000_000000.json",
+) -> Path:
+    report_dir = tmp_path / "reports"
+    report_dir.mkdir(exist_ok=True)
+    path = report_dir / name
+    path.write_text(
+        json.dumps(
+            {
+                "tool": "VoidScan",
+                "scan_type": "Network Scan",
+                "target": "127.0.0.1",
+                "timestamp": "2026-11-03T12:00:00+00:00",
+                "findings": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    return path
+
+
+def test_report_browser_without_reports(tmp_path):
+    with menu_harness(tmp_path, inputs=[""]):
+        menu.browse_reports()
+
+
+def test_report_browser_rejects_an_invalid_selection(tmp_path):
+    write_report_file(tmp_path)
+
+    with menu_harness(tmp_path, inputs=["9", ""]):
+        menu.browse_reports()
+
+
+def test_report_browser_opens_the_selected_report(tmp_path):
+    path = write_report_file(tmp_path)
+
+    with (
+        menu_harness(tmp_path, inputs=["1"]),
+        patch("voidscan.menu._open_report") as open_report,
+    ):
+        menu.browse_reports()
+
+    open_report.assert_called_once()
+    report = open_report.call_args.args[0]
+    assert report.path == path
+
+
+def test_report_browser_opens_a_json_report_in_the_pager(tmp_path):
+    write_report_file(tmp_path)
+    report = load_report_summaries(tmp_path / "reports")[0]
+
+    with (
+        menu_harness(tmp_path),
+        patch("voidscan.menu.console.pager") as pager,
+    ):
+        menu._open_report(report)
+
+    pager.assert_called_once_with(styles=True)
+
+
+def test_report_browser_opens_an_html_report_in_the_browser(tmp_path):
+    path = tmp_path / "network_scan_20261103_120000_000000.html"
+    report = ReportSummary(
+        path=path,
+        format="html",
+        scan_type="Network Scan",
+        target="127.0.0.1",
+        timestamp=None,
+        finding_count=0,
+    )
+
+    with (
+        menu_harness(tmp_path),
+        patch(
+            "voidscan.menu.webbrowser.open",
+            return_value=True,
+        ) as open_browser,
+    ):
+        menu._open_report(report)
+
+    open_browser.assert_called_once_with(path.as_uri())
+
+
+def test_report_browser_handles_a_missing_report_file(tmp_path):
+    report = ReportSummary(
+        path=tmp_path / "missing.json",
+        format="json",
+        scan_type="Network Scan",
+        target="127.0.0.1",
+        timestamp=None,
+        finding_count=None,
+    )
+
+    with menu_harness(tmp_path):
+        menu._open_report(report)
+
+
 # Main menu
 
 
@@ -854,11 +957,25 @@ def test_run_menu_dispatches_every_flow(tmp_path):
         "target_manager",
         "view_logs",
         "settings",
+        "browse_reports",
     ]
 
     with (
         menu_harness(
-            tmp_path, inputs=["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
+            tmp_path,
+            inputs=[
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7",
+                "8",
+                "9",
+                "10",
+                "0",
+            ],
         ),
         patch.multiple(
             "voidscan.menu", **{name: MagicMock() for name in names}

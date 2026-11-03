@@ -24,6 +24,9 @@ All notable changes to VoidScan will be documented here.
   travels with the finding instead of living only in the documentation
 * The terminal findings table renders confidence and context, and HTML
   reports show a confidence chip and a "Why this matters" section
+* Report browser (`10` in the main menu) that lists every saved JSON and HTML
+  report with its date, scan type, target, finding count, and format; JSON
+  reports open in the terminal pager and HTML reports open in the browser
 
 ### Changed
 
