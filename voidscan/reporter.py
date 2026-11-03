@@ -11,6 +11,7 @@ from rich.console import Console
 from rich.table import Table
 
 from voidscan import __version__
+from voidscan.audit import ScanAudit
 from voidscan.findings import Finding, merge_evidence
 from voidscan.severity import (
     SEVERITY_COLORS,
@@ -75,7 +76,7 @@ def _deduplicate_serialized(
     return [merged[key] for key in ordered_keys]
 
 
-def _severity_counts(
+def severity_counts(
     findings: Sequence[dict[str, Any]],
 ) -> dict[str, int]:
     """Count serialized findings per severity, most severe first."""
@@ -144,6 +145,7 @@ def create_report(
     target: str,
     result: Any,
     findings: Sequence[Finding | dict[str, Any]] | None = None,
+    audit: ScanAudit | None = None,
 ) -> dict[str, Any]:
     """Create a standardized VoidScan report."""
 
@@ -156,18 +158,24 @@ def create_report(
             "Report result must be a dataclass instance or dictionary."
         )
 
-    return {
+    report: dict[str, Any] = {
         "tool": "VoidScan",
         "schema_version": REPORT_SCHEMA_VERSION,
         "version": __version__,
         "scan_type": scan_type,
         "target": target,
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "result": result_data,
-        "findings": _deduplicate_serialized(
-            [_serialize_finding(finding) for finding in (findings or [])]
-        ),
     }
+
+    if audit is not None:
+        report["audit"] = audit.to_dict()
+
+    report["result"] = result_data
+    report["findings"] = _deduplicate_serialized(
+        [_serialize_finding(finding) for finding in (findings or [])]
+    )
+
+    return report
 
 
 def report_filename(report: dict[str, Any], extension: str) -> str:
@@ -235,6 +243,16 @@ def build_report_summary(
         "timestamp": report.get("timestamp", "Unknown"),
     }
 
+    audit = report.get("audit")
+
+    if isinstance(audit, dict):
+        for key in ("started_at", "finished_at", "duration_seconds"):
+            if key in audit:
+                summary[key] = audit[key]
+
+        if "result_count" in audit:
+            summary["result_count"] = audit["result_count"]
+
     if not isinstance(result, dict):
         return summary
 
@@ -258,7 +276,7 @@ def build_report_summary(
     if isinstance(findings, list):
         summary["findings_count"] = len(findings)
 
-        counts = _severity_counts(
+        counts = severity_counts(
             [finding for finding in findings if isinstance(finding, dict)]
         )
 
@@ -282,6 +300,21 @@ def display_report_summary(report: dict[str, Any]) -> None:
     table.add_row("Scan Type", str(summary["scan_type"]))
     table.add_row("Target", str(summary["target"]))
     table.add_row("Timestamp", str(summary["timestamp"]))
+
+    if "started_at" in summary:
+        table.add_row("Started", str(summary["started_at"]))
+
+    if "finished_at" in summary:
+        table.add_row("Finished", str(summary["finished_at"]))
+
+    if "duration_seconds" in summary:
+        table.add_row(
+            "Duration",
+            f"{float(summary['duration_seconds']):.2f}s",
+        )
+
+    if "result_count" in summary:
+        table.add_row("Results", str(summary["result_count"]))
 
     if "success" in summary:
         status = (

@@ -249,7 +249,12 @@ cancelled scans do not write a report.
 Reports are written to `~/.voidscan/reports/` with unique timestamped names,
 for example `network_scan_20261025_120906_774999.json`. Every report includes
 a `schema_version`, the VoidScan `version`, and a `findings` array, even when
-nothing was found.
+nothing was found. Each report also carries an `audit` block with the scan's
+start and end time (UTC), duration, command, and result count. The same
+details are written to the application log as a single `Scan audit:` line.
+
+HTML reports add a severity summary, a section index, per-finding anchors, and
+the audit metadata, so long assessments stay navigable.
 
 Application logs are written to `~/.voidscan/logs/voidscan.log` and can be
 read from the main menu with **View Logs**.

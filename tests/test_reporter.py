@@ -1,11 +1,13 @@
 """Tests for VoidScan reporting utilities."""
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 from voidscan import __version__
+from voidscan.audit import ScanAudit
 from voidscan.findings import Finding, Severity
 from voidscan.reporter import (
     REPORT_SCHEMA_VERSION,
@@ -15,6 +17,7 @@ from voidscan.reporter import (
     display_report_summary,
     save_json_report,
     save_scan_report,
+    severity_counts,
 )
 
 
@@ -34,6 +37,16 @@ def make_finding(**overrides) -> Finding:
     }
     values.update(overrides)
     return Finding(**values)
+
+
+def make_audit() -> ScanAudit:
+    return ScanAudit(
+        started_at=datetime(2026, 11, 3, 12, 0, tzinfo=timezone.utc),
+        finished_at=datetime(2026, 11, 3, 12, 0, 2, tzinfo=timezone.utc),
+        duration_seconds=2.5,
+        command="nmap -T4 -F 127.0.0.1",
+        result_count=3,
+    )
 
 
 def test_create_report_with_dataclass():
@@ -80,6 +93,69 @@ def test_report_schema_shape_is_locked():
         "result",
         "findings",
     ]
+
+
+def test_report_schema_with_audit_adds_one_key():
+    result = MockScanResult(success=True, findings=[])
+
+    report = create_report(
+        scan_type="Network Scan",
+        target="127.0.0.1",
+        result=result,
+        audit=make_audit(),
+    )
+
+    assert list(report) == [
+        "tool",
+        "schema_version",
+        "version",
+        "scan_type",
+        "target",
+        "timestamp",
+        "audit",
+        "result",
+        "findings",
+    ]
+
+    assert report["audit"] == {
+        "started_at": "2026-11-03T12:00:00+00:00",
+        "finished_at": "2026-11-03T12:00:02+00:00",
+        "duration_seconds": 2.5,
+        "command": "nmap -T4 -F 127.0.0.1",
+        "result_count": 3,
+    }
+
+
+def test_build_report_summary_includes_audit_fields():
+    report = {
+        "scan_type": "Network Scan",
+        "target": "127.0.0.1",
+        "timestamp": "2026-11-03T12:00:02+00:00",
+        "audit": make_audit().to_dict(),
+        "result": {"success": True},
+    }
+
+    summary = build_report_summary(report)
+
+    assert summary["duration_seconds"] == 2.5
+    assert summary["result_count"] == 3
+    assert summary["started_at"] == "2026-11-03T12:00:00+00:00"
+    assert summary["finished_at"] == "2026-11-03T12:00:02+00:00"
+
+
+def test_severity_counts_are_ordered_most_severe_first():
+    counts = severity_counts(
+        [
+            {"severity": "INFO"},
+            {"severity": "HIGH"},
+            {"severity": "HIGH"},
+            {"severity": "low"},
+            {"severity": "not-a-severity"},
+        ]
+    )
+
+    assert counts == {"HIGH": 2, "LOW": 1, "INFO": 1}
+    assert list(counts) == ["HIGH", "LOW", "INFO"]
 
 
 def test_create_report_with_dictionary():

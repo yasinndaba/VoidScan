@@ -12,6 +12,12 @@ All notable changes to VoidScan will be documented here.
 * Explicit IPv6 policy: family-aware discovery size errors with a suggested
   prefix, `ping -6` for IPv6 probes, `nmap -6` for IPv6 literals, and
   bracketed IPv6 URLs from `to_web_url`
+* Per-scan audit records: every JSON and HTML report includes an `audit`
+  block with UTC start/end times, duration, command, and result count
+* A single `Scan audit:` log line per scan, plus timestamps and durations on
+  every external command log
+* HTML reports now show a severity summary, a section index, per-finding
+  anchors, and the audit metadata
 
 ### Changed
 

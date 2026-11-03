@@ -91,6 +91,95 @@ def test_generate_html_report_without_findings_says_so():
 
     assert "Security Findings (0)" in html
     assert "No security findings were recorded" in html
+    assert "No findings to summarise." in html
+
+
+def test_generate_html_report_summarises_severities():
+    report = {
+        "scan_type": "Network Scan",
+        "target": "127.0.0.1",
+        "timestamp": "2026-09-06T10:00:00+00:00",
+        "result": {"success": True},
+        "findings": [
+            {"title": "One", "severity": "HIGH"},
+            {"title": "Two", "severity": "INFO"},
+        ],
+    }
+
+    html = generate_html_report(report)
+
+    assert 'id="severity-summary"' in html
+    assert "HIGH 1" in html
+    assert "INFO 1" in html
+    assert "Total 2" in html
+
+
+def test_generate_html_report_renders_audit_metadata():
+    report = {
+        "scan_type": "Network Scan",
+        "target": "127.0.0.1",
+        "timestamp": "2026-09-06T10:00:00+00:00",
+        "audit": {
+            "started_at": "2026-11-03T12:00:00+00:00",
+            "finished_at": "2026-11-03T12:00:01.250000+00:00",
+            "duration_seconds": 1.25,
+            "command": "nmap -T4 -F 127.0.0.1",
+            "result_count": 2,
+        },
+        "result": {"success": True},
+    }
+
+    html = generate_html_report(report)
+
+    assert 'id="metadata"' in html
+    assert "2026-11-03T12:00:00+00:00" in html
+    assert "2026-11-03T12:00:01.250000+00:00" in html
+    assert "1.25s" in html
+    assert "nmap -T4 -F 127.0.0.1" in html
+    assert ">2<" in html
+
+
+def test_generate_html_report_escapes_audit_command():
+    report = {
+        "scan_type": "Network Scan",
+        "target": "127.0.0.1",
+        "timestamp": "2026-09-06T10:00:00+00:00",
+        "audit": {
+            "started_at": "2026-11-03T12:00:00+00:00",
+            "finished_at": "2026-11-03T12:00:01+00:00",
+            "duration_seconds": 1.0,
+            "command": "<script>alert('xss')</script>",
+            "result_count": 0,
+        },
+        "result": {"success": True},
+    }
+
+    html = generate_html_report(report)
+
+    assert "<script>alert('xss')</script>" not in html
+    assert "&lt;script&gt;" in html
+
+
+def test_generate_html_report_links_sections_and_findings():
+    report = {
+        "scan_type": "Network Scan",
+        "target": "127.0.0.1",
+        "timestamp": "2026-09-06T10:00:00+00:00",
+        "result": {"success": True},
+        "findings": [{"title": "One", "severity": "INFO"}],
+    }
+
+    html = generate_html_report(report)
+
+    assert 'href="#metadata"' in html
+    assert 'href="#severity-summary"' in html
+    assert 'href="#findings"' in html
+    assert 'href="#results"' in html
+    assert 'id="findings"' in html
+    assert 'id="results"' in html
+    assert 'id="finding-1"' in html
+    assert 'class="back-to-top" href="#top"' in html
+    assert 'body id="top"' in html
 
 
 def test_generate_html_report_escapes_finding_evidence():

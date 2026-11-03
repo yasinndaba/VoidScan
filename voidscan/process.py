@@ -10,6 +10,7 @@ import threading
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from voidscan.errors import ScanCancelled, ScanTimeout
 
@@ -132,7 +133,12 @@ def run_command(
         raise ValueError("Command timeout must be greater than zero.")
 
     command = list(command)
-    logger.info("Running command: %s", " ".join(command))
+    started_wall = datetime.now(timezone.utc)
+    logger.info(
+        "Command started at %s: %s",
+        started_wall.isoformat(),
+        " ".join(command),
+    )
 
     try:
         if os.name == "posix":
@@ -210,13 +216,21 @@ def run_command(
                     ),
                 ) from exc
 
+        return_code = (
+            process.returncode if process.returncode is not None else -1
+        )
+        logger.info(
+            "Command finished in %.3fs at %s (exit %s): %s",
+            time.monotonic() - started_at,
+            datetime.now(timezone.utc).isoformat(),
+            return_code,
+            " ".join(command),
+        )
         return CommandResult(
             command=command,
             stdout=stdout or "",
             stderr=stderr or "",
-            return_code=(
-                process.returncode if process.returncode is not None else -1
-            ),
+            return_code=return_code,
         )
     finally:
         _unregister_process(process)

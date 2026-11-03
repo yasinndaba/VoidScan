@@ -6,7 +6,7 @@ import re
 import shutil
 import threading
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from voidscan.errors import ScanTimeout
@@ -31,6 +31,7 @@ class DirectoryResult:
     results: list[str]
     return_code: int
     success: bool
+    command: list[str] = field(default_factory=list)
 
 
 SUPPORTED_ENGINES = {
@@ -161,6 +162,7 @@ def run_ffuf(
         results=results,
         return_code=process.return_code,
         success=process.return_code == 0,
+        command=command,
     )
 
 
@@ -233,6 +235,7 @@ def run_dirb(
         results=results,
         return_code=process.return_code,
         success=process.return_code == 0,
+        command=command,
     )
 
 

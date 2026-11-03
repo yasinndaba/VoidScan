@@ -184,6 +184,8 @@ Progress:
 
 - [x] C2 — Central severity policy in `voidscan/severity.py` with table-driven tests
 - [x] B3 — Explicit IPv6 policy: family-aware size rejection, `ping -6`, `nmap -6`, and bracketed URLs
+- [x] B6 — Audit record per scan: start/end time, command, duration, and result count in logs and report metadata
+- [x] D6 — HTML report polish: severity summary, audit metadata, section nav, and per-finding anchors
 
 ### v1.0 — Release
 

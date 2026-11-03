@@ -6,7 +6,7 @@ import math
 import shutil
 import threading
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from voidscan.errors import ScanTimeout
 from voidscan.process import run_command
@@ -28,6 +28,7 @@ class SubdomainResult:
     return_code: int
     success: bool
     timed_out: bool = False
+    command: list[str] = field(default_factory=list)
 
 
 SUPPORTED_ENGINES = {
@@ -136,6 +137,7 @@ def run_subfinder(
         subdomains=subdomains,
         return_code=process.return_code,
         success=process.return_code == 0,
+        command=command,
     )
 
 
@@ -190,6 +192,7 @@ def run_amass(
             return_code=exc.return_code,
             success=False,
             timed_out=True,
+            command=command,
         )
     except OSError as exc:
         logger.error("Failed to execute Amass: %s", exc)
@@ -209,6 +212,7 @@ def run_amass(
         subdomains=subdomains,
         return_code=process.return_code,
         success=process.return_code == 0,
+        command=command,
     )
 
 
@@ -229,6 +233,7 @@ def merge_subdomain_results(
         ),
         success=primary.success or secondary.success,
         timed_out=primary.timed_out or secondary.timed_out,
+        command=[*primary.command, "&&", *secondary.command],
     )
 
 

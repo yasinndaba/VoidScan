@@ -1,5 +1,7 @@
 """Interactive menu system for VoidScan."""
 
+import logging
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
@@ -7,6 +9,7 @@ from rich.table import Table
 from rich.text import Text
 
 from voidscan import __version__
+from voidscan.audit import ScanTimer, log_scan_audit
 from voidscan.authorization import is_authorized, mark_authorized
 from voidscan.config import Config, get_config
 from voidscan.dependencies import is_tool_installed
@@ -48,6 +51,8 @@ from voidscan.validators import (
 )
 
 console = Console()
+
+logger = logging.getLogger("voidscan.menu")
 
 # Result tables are capped so large scans stay readable. Full results are
 # always available in the saved JSON and HTML reports.
@@ -467,6 +472,7 @@ def network_scan() -> None:
         )
     )
     try:
+        timer = ScanTimer()
         result = run_with_progress(
             f"Running Nmap {profile} scan",
             lambda ctx: run_nmap(
@@ -490,6 +496,16 @@ def network_scan() -> None:
             )
 
             findings = analyze_nmap_result(result)
+            audit = timer.finish(
+                command=" ".join(result.command),
+                result_count=len(findings),
+            )
+            log_scan_audit(
+                logger,
+                audit,
+                scan_type="Network Scan",
+                target=scan_target,
+            )
             display_findings(findings)
 
             if not findings:
@@ -511,6 +527,7 @@ def network_scan() -> None:
                     target=scan_target,
                     result=result,
                     findings=findings,
+                    audit=audit,
                 )
 
                 if save_json:
@@ -629,6 +646,7 @@ def live_host_discovery() -> None:
     )
 
     try:
+        timer = ScanTimer()
         result = run_with_progress(
             "Discovering hosts",
             lambda ctx: discover_hosts(
@@ -684,6 +702,17 @@ def live_host_discovery() -> None:
         f"\n[bold green]Hosts discovered:[/bold green] {result.reachable}"
     )
 
+    audit = timer.finish(
+        command=" ".join(result.command),
+        result_count=len(result.hosts),
+    )
+    log_scan_audit(
+        logger,
+        audit,
+        scan_type="Live Host Discovery",
+        target=result.network,
+    )
+
     findings = analyze_discovery_result(result)
     display_findings(findings)
 
@@ -696,6 +725,7 @@ def live_host_discovery() -> None:
             target=result.network,
             result=result,
             findings=findings,
+            audit=audit,
         )
 
         if save_json:
@@ -882,6 +912,7 @@ def subdomain_enumeration() -> None:
     )
 
     try:
+        timer = ScanTimer()
         result = _run_subdomain_scan(domain, engine, config)
 
     except ScanCancelled:
@@ -944,6 +975,17 @@ def subdomain_enumeration() -> None:
                 )
 
         console.print()
+
+    audit = timer.finish(
+        command=" ".join(result.command),
+        result_count=len(result.subdomains),
+    )
+    log_scan_audit(
+        logger,
+        audit,
+        scan_type="Subdomain Enumeration",
+        target=domain,
+    )
 
     if result.subdomains:
         result_table = Table(
@@ -1016,6 +1058,7 @@ def subdomain_enumeration() -> None:
                 target=domain,
                 result=result,
                 findings=findings,
+                audit=audit,
             )
 
             if save_json:
@@ -1245,6 +1288,7 @@ def directory_enumeration() -> None:
         )
 
     try:
+        timer = ScanTimer()
         result = run_with_progress(
             f"Running {engine.upper()}",
             run_directory_enumeration,
@@ -1262,6 +1306,17 @@ def directory_enumeration() -> None:
         return
 
     console.print()
+
+    audit = timer.finish(
+        command=" ".join(result.command),
+        result_count=len(result.results),
+    )
+    log_scan_audit(
+        logger,
+        audit,
+        scan_type="Directory Enumeration",
+        target=target,
+    )
 
     if result.success and result.results:
         result_table = Table(
@@ -1322,6 +1377,7 @@ def directory_enumeration() -> None:
                 target=target,
                 result=result,
                 findings=findings,
+                audit=audit,
             )
 
             if save_json:
@@ -1436,6 +1492,7 @@ def ip_information() -> None:
     )
 
     try:
+        timer = ScanTimer()
         with console.status(
             "[cyan]Resolving target...[/cyan]",
             spinner="dots",
@@ -1483,6 +1540,13 @@ def ip_information() -> None:
     console.print(info_table)
 
     findings = analyze_ip_info_result(result)
+    audit = timer.finish(command="", result_count=len(findings))
+    log_scan_audit(
+        logger,
+        audit,
+        scan_type="IP Information",
+        target=target,
+    )
     display_findings(findings)
 
     save_json = Confirm.ask("Save IP information as JSON report?")
@@ -1494,6 +1558,7 @@ def ip_information() -> None:
             target=target,
             result=result,
             findings=findings,
+            audit=audit,
         )
 
         if save_json:

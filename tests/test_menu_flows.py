@@ -1,5 +1,6 @@
 """Coverage-oriented tests for the interactive menu flows."""
 
+import json
 from collections.abc import Sequence
 from contextlib import contextmanager
 from pathlib import Path
@@ -94,6 +95,7 @@ def make_discovery_result(
         hosts=list(hosts),
         scanned=254,
         reachable=len(hosts),
+        command=["ping", "-c", "1", "-W", "1", "<host>"],
     )
 
 
@@ -326,6 +328,16 @@ def test_live_host_discovery_reports_hosts_and_saves_reports(tmp_path):
         len(list((tmp_path / "reports").glob("live_host_discovery_*.json")))
         == 1
     )
+
+    report_path = next(
+        (tmp_path / "reports").glob("live_host_discovery_*.json")
+    )
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+
+    assert report["audit"]["result_count"] == len(hosts)
+    assert report["audit"]["command"].startswith("ping -c 1")
+    assert report["audit"]["duration_seconds"] >= 0
+    assert report["audit"]["started_at"] <= report["audit"]["finished_at"]
 
 
 def test_live_host_discovery_reports_no_hosts(tmp_path):

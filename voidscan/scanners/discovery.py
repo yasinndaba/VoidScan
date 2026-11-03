@@ -6,7 +6,7 @@ import subprocess
 import threading
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from voidscan.errors import ScanCancelled
 
@@ -26,6 +26,7 @@ class HostDiscoveryResult:
     hosts: list[str]
     scanned: int
     reachable: int
+    command: list[str] = field(default_factory=list)
 
 
 def validate_network(
@@ -228,4 +229,5 @@ def discover_hosts(
         hosts=ordered_hosts,
         scanned=len(hosts),
         reachable=len(ordered_hosts),
+        command=["ping", "-c", "1", "-W", str(ping_timeout), "<host>"],
     )
