@@ -24,13 +24,21 @@ def make_result(command, stdout="", return_code=0):
     )
 
 
-def test_default_wordlist_exists():
-    assert DEFAULT_WORDLIST.is_file()
+def test_default_wordlist_is_an_absolute_path():
+    # The wordlist ships with Dirb, so it is not present on every machine
+    # (including CI). Assert the configured location, not that it exists.
+    assert DEFAULT_WORDLIST.is_absolute()
+    assert DEFAULT_WORDLIST.name == "common.txt"
 
 
-def test_validate_wordlist():
-    path = validate_wordlist(DEFAULT_WORDLIST)
-    assert path == DEFAULT_WORDLIST
+def test_validate_wordlist_expands_the_home_directory(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    wordlist = tmp_path / "words.txt"
+    wordlist.write_text("admin\nlogin\n")
+
+    path = validate_wordlist("~/words.txt")
+
+    assert path == wordlist
 
 
 def test_validate_missing_wordlist():
