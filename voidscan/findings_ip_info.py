@@ -1,6 +1,6 @@
 """IP information findings analyzer for VoidScan."""
 
-from voidscan.findings import Finding
+from voidscan.findings import Confidence, Finding
 from voidscan.scanners.ip_info import IPInfoResult
 from voidscan.severity import IP_INFO_SEVERITY
 
@@ -24,6 +24,11 @@ def analyze_ip_info_result(result: IPInfoResult) -> list[Finding]:
                     "Verify that the address belongs to the authorized "
                     "internal network and review its exposed services."
                 ),
+                confidence=Confidence.HIGH,
+                why_it_matters=(
+                    "Private addressing marks an internal asset, which can "
+                    "expose services that are not reachable from outside."
+                ),
             )
         )
 
@@ -40,6 +45,11 @@ def analyze_ip_info_result(result: IPInfoResult) -> list[Finding]:
                 recommendation=(
                     "Verify that loopback addressing is expected for the "
                     "target."
+                ),
+                confidence=Confidence.HIGH,
+                why_it_matters=(
+                    "Loopback targets usually indicate local testing and "
+                    "should not be mistaken for remote exposure."
                 ),
             )
         )
@@ -58,6 +68,12 @@ def analyze_ip_info_result(result: IPInfoResult) -> list[Finding]:
                     "Verify that the reserved address is expected and "
                     "appropriately handled by the environment."
                 ),
+                confidence=Confidence.HIGH,
+                why_it_matters=(
+                    "Reserved ranges are not routable on the public "
+                    "internet, so findings here usually indicate lab or "
+                    "misconfigured addressing."
+                ),
             )
         )
 
@@ -75,6 +91,11 @@ def analyze_ip_info_result(result: IPInfoResult) -> list[Finding]:
                     "Verify that multicast addressing is required and "
                     "appropriately restricted."
                 ),
+                confidence=Confidence.HIGH,
+                why_it_matters=(
+                    "Multicast addresses identify groups rather than single "
+                    "hosts, so probes can affect multiple systems."
+                ),
             )
         )
 
@@ -91,6 +112,12 @@ def analyze_ip_info_result(result: IPInfoResult) -> list[Finding]:
                 recommendation=(
                     "Verify that the reverse DNS record is expected and "
                     "does not disclose unnecessary information."
+                ),
+                confidence=Confidence.MEDIUM,
+                why_it_matters=(
+                    "Reverse DNS names can expose internal naming "
+                    "conventions and help map services, but they are not "
+                    "proof of ownership."
                 ),
             )
         )

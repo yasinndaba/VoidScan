@@ -18,6 +18,12 @@ All notable changes to VoidScan will be documented here.
   every external command log
 * HTML reports now show a severity summary, a section index, per-finding
   anchors, and the audit metadata
+* Findings carry a confidence level (`LOW`, `MEDIUM`, or `HIGH`) and a short
+  "why this matters" note that explains the risk in plain language
+* Every service rule now documents why the exposure matters, so the context
+  travels with the finding instead of living only in the documentation
+* The terminal findings table renders confidence and context, and HTML
+  reports show a confidence chip and a "Why this matters" section
 
 ### Changed
 
@@ -26,6 +32,11 @@ All notable changes to VoidScan will be documented here.
 * Live host discovery validates the network scope before authorization, so
   oversized IPv4 and IPv6 ranges are rejected before enumeration
 * The README and `config.example.toml` document the supported IPv6 sizes
+* Finding deduplication also keys on confidence and context, so findings
+  with different certainty or explanations are not collapsed together
+* Structured Nmap output yields `HIGH` confidence findings, the text
+  fallback yields `MEDIUM`, subdomain results from a timed-out run are
+  `LOW`, and reverse-DNS findings are `MEDIUM`
 
 ## [0.3.0] - 2026-10-30
 

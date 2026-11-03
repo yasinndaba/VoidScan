@@ -1,8 +1,9 @@
 """Tests for VoidScan Nmap findings."""
 
-from voidscan.findings import Severity
+from voidscan.findings import Confidence, Severity
 from voidscan.findings_nmap import analyze_nmap_result
 from voidscan.scanners.nmap import NmapPort, NmapResult
+from voidscan.severity import SSH_RULE
 
 
 def test_analyze_nmap_detects_ssh():
@@ -21,6 +22,8 @@ def test_analyze_nmap_detects_ssh():
     assert len(findings) == 1
     assert findings[0].title == "SSH Service Detected"
     assert findings[0].severity == Severity.INFO
+    assert findings[0].confidence is Confidence.MEDIUM
+    assert findings[0].why_it_matters == SSH_RULE.why_it_matters
     assert "22/tcp open ssh" in findings[0].evidence
 
 
@@ -244,4 +247,5 @@ def test_analyze_nmap_prefers_structured_ports():
 
     assert len(findings) == 1
     assert findings[0].title == "SSH Service Detected"
+    assert findings[0].confidence is Confidence.HIGH
     assert "22/tcp open ssh OpenSSH 8.9p1" in findings[0].evidence

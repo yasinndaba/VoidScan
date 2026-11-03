@@ -63,9 +63,11 @@ def test_generate_html_report_lists_findings():
             {
                 "title": "SSH Service Detected",
                 "severity": "HIGH",
+                "confidence": "HIGH",
                 "description": "An SSH service was detected.",
                 "evidence": "22/tcp open ssh",
                 "recommendation": "Restrict SSH access.",
+                "why_it_matters": "Remote access expands the attack surface.",
             }
         ],
     }
@@ -75,8 +77,57 @@ def test_generate_html_report_lists_findings():
     assert "Security Findings (1)" in html
     assert "SSH Service Detected" in html
     assert "severity-high" in html
+    assert "HIGH confidence" in html
+    assert "confidence-high" in html
+    assert "Why this matters:" in html
+    assert "Remote access expands the attack surface." in html
     assert "22/tcp open ssh" in html
     assert "Restrict SSH access." in html
+
+
+def test_generate_html_report_omits_empty_confidence_and_context():
+    report = {
+        "scan_type": "Network Scan",
+        "target": "127.0.0.1",
+        "timestamp": "2026-09-06T10:00:00+00:00",
+        "result": {"success": True},
+        "findings": [
+            {
+                "title": "Open Port Detected",
+                "severity": "INFO",
+                "description": "An open port was detected.",
+                "evidence": "65000/tcp open unknown",
+                "recommendation": "Review the port.",
+            }
+        ],
+    }
+
+    html = generate_html_report(report)
+
+    assert "confidence confidence-" not in html
+    assert "Why this matters:" not in html
+
+
+def test_generate_html_report_escapes_confidence_context():
+    report = {
+        "scan_type": "Network Scan",
+        "target": "127.0.0.1",
+        "timestamp": "2026-09-06T10:00:00+00:00",
+        "result": {"success": True},
+        "findings": [
+            {
+                "title": "Finding",
+                "severity": "INFO",
+                "confidence": "<script>",
+                "why_it_matters": "<script>alert('xss')</script>",
+            }
+        ],
+    }
+
+    html = generate_html_report(report)
+
+    assert "<script>" not in html
+    assert "&lt;script&gt;" in html
 
 
 def test_generate_html_report_without_findings_says_so():

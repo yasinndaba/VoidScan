@@ -1,6 +1,6 @@
 """Tests for VoidScan host discovery findings."""
 
-from voidscan.findings import Severity
+from voidscan.findings import Confidence, Severity
 from voidscan.findings_discovery import analyze_discovery_result
 from voidscan.scanners.discovery import HostDiscoveryResult
 
@@ -22,6 +22,8 @@ def test_analyze_discovery_detects_reachable_hosts():
     assert len(findings) == 1
     assert findings[0].title == "Reachable Hosts Discovered"
     assert findings[0].severity == Severity.INFO
+    assert findings[0].confidence is Confidence.HIGH
+    assert findings[0].why_it_matters
     assert "192.168.1.10" in findings[0].evidence
 
 

@@ -1,6 +1,6 @@
 """Live host discovery findings analyzer for VoidScan."""
 
-from voidscan.findings import Finding
+from voidscan.findings import Confidence, Finding
 from voidscan.scanners.discovery import HostDiscoveryResult
 from voidscan.severity import DISCOVERY_SEVERITY
 
@@ -25,6 +25,11 @@ def analyze_discovery_result(
             recommendation=(
                 "Review discovered hosts and verify that each system "
                 "is authorized, required, and appropriately secured."
+            ),
+            confidence=Confidence.HIGH,
+            why_it_matters=(
+                "Reachable hosts broaden the attack surface and should be "
+                "accounted for in scope, monitoring, and patching."
             ),
         )
     ]

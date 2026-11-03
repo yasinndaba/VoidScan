@@ -101,6 +101,7 @@ Milestone 7 — CI/CD: Complete
 - Structured security findings with severity levels
 - Findings analyzers for Nmap, host discovery, subdomains, directories, and IP information
 - Risk-based severity for exposed services (Telnet, SMB, RDP, databases, and more)
+- Confidence levels and a plain-language "why this matters" note on every finding
 - Findings deduplication that merges all unique evidence
 - Findings included in JSON and HTML reports
 - Consistent empty, timeout, missing-tool, and invalid-input panels
@@ -252,6 +253,13 @@ a `schema_version`, the VoidScan `version`, and a `findings` array, even when
 nothing was found. Each report also carries an `audit` block with the scan's
 start and end time (UTC), duration, command, and result count. The same
 details are written to the application log as a single `Scan audit:` line.
+
+Each finding records a severity, a confidence level, and a short "why this
+matters" note. Confidence reflects how directly the evidence supports the
+finding: structured tool output is `HIGH`, text parsing is `MEDIUM`, and
+partial or interrupted results are `LOW`. The terminal table and HTML reports
+render both the confidence and the context, so a report explains the risk
+without needing extra lookup.
 
 HTML reports add a severity summary, a section index, per-finding anchors, and
 the audit metadata, so long assessments stay navigable.

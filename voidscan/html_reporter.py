@@ -22,6 +22,22 @@ def _render_findings_section(findings: list[Any]) -> str:
         description = escape(str(finding.get("description", "")))
         evidence = escape(str(finding.get("evidence", "")))
         recommendation = escape(str(finding.get("recommendation", "")))
+        confidence = escape(str(finding.get("confidence", "")).upper())
+        why_it_matters = escape(str(finding.get("why_it_matters", "")))
+
+        confidence_html = (
+            f'<span class="confidence confidence-{confidence.lower()}">'
+            f"{confidence} confidence</span>"
+            if confidence
+            else ""
+        )
+
+        why_html = (
+            f'<p class="why"><strong>Why this matters:</strong> '
+            f"{why_it_matters}</p>"
+            if why_it_matters
+            else ""
+        )
 
         blocks.append(
             f"""
@@ -30,10 +46,12 @@ def _render_findings_section(findings: list[Any]) -> str:
                 <span class="severity severity-{severity.lower()}">
                     {severity}
                 </span>
+                {confidence_html}
                 <span class="finding-title">{title}</span>
                 <a class="back-to-top" href="#top">Back to top</a>
             </div>
             <p>{description}</p>
+            {why_html}
             <pre class="evidence">{evidence}</pre>
             <p class="recommendation">
                 <strong>Recommendation:</strong> {recommendation}
@@ -286,6 +304,32 @@ def generate_html_report(report: dict[str, Any]) -> str:
 
         .severity-info {{
             background: #4b5563;
+        }}
+
+        .confidence {{
+            font-size: 0.8em;
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 3px;
+            border: 1px solid currentColor;
+        }}
+
+        .confidence-high {{
+            color: #166534;
+        }}
+
+        .confidence-medium {{
+            color: #b45309;
+        }}
+
+        .confidence-low {{
+            color: #6b7280;
+        }}
+
+        .why {{
+            color: #374151;
+            border-left: 3px solid #d1d5db;
+            padding-left: 10px;
         }}
 
         .evidence {{

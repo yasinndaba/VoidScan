@@ -1,7 +1,7 @@
 # VoidScan Roadmap
 
-Current baseline: **v0.3.0**, **313 tests passing** plus 4 optional live
-tests, **93.7% coverage**, Linux supported. Ruff, formatting, and mypy pass
+Current baseline: **v0.3.0**, **392 tests passing** plus 4 optional live
+tests, **94.2% coverage**, Linux supported. Ruff, formatting, and mypy pass
 on the current tree.
 
 Milestones 0–7 are complete. The v0.2 reliability milestone and the v0.3
@@ -20,7 +20,7 @@ Working today:
 - Subfinder and Amass enumeration with clean output parsing, partial Amass results, and Subfinder retry
 - FFUF and DIRB enumeration with full-URL results
 - IP information and system monitoring
-- Findings with severity levels in the terminal, JSON, and HTML, deduplicated with merged evidence
+- Findings with severity, confidence, and plain-language context in the terminal, JSON, and HTML, deduplicated with merged evidence
 - Versioned reports with unique timestamped JSON and HTML filenames
 - File logging, startup dependency checks, log viewer, and settings panel
 - Structured Nmap, FFUF, and Subfinder output with tested text fallbacks
@@ -31,8 +31,8 @@ Known gaps this roadmap addresses:
 
 - Settings cannot be edited
 - No report browser, paging, or filtering for large result sets
-- Findings are mostly presence-based, with limited risk context
-- No explicit IPv6 policy, scope file, or per-scan audit record
+- Findings are still mostly presence-based; service-version awareness is pending
+- No scope file yet
 - No architecture docs, screenshots, or demo lab
 
 ## Priority legend
@@ -186,6 +186,7 @@ Progress:
 - [x] B3 — Explicit IPv6 policy: family-aware size rejection, `ping -6`, `nmap -6`, and bracketed URLs
 - [x] B6 — Audit record per scan: start/end time, command, duration, and result count in logs and report metadata
 - [x] D6 — HTML report polish: severity summary, audit metadata, section nav, and per-finding anchors
+- [x] C5 — Confidence and context: every finding carries a confidence level and a "why this matters" note rendered in the terminal and HTML reports
 
 ### v1.0 — Release
 

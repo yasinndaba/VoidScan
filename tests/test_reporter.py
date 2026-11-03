@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pytest
 from voidscan import __version__
 from voidscan.audit import ScanAudit
-from voidscan.findings import Finding, Severity
+from voidscan.findings import Confidence, Finding, Severity
 from voidscan.reporter import (
     REPORT_SCHEMA_VERSION,
     build_report_summary,
@@ -34,6 +34,8 @@ def make_finding(**overrides) -> Finding:
         "description": "An SSH service was detected on the target.",
         "evidence": "22/tcp open ssh",
         "recommendation": "Restrict SSH access where possible.",
+        "confidence": Confidence.HIGH,
+        "why_it_matters": "Remote access expands the attack surface.",
     }
     values.update(overrides)
     return Finding(**values)
@@ -233,7 +235,11 @@ def test_create_report_with_structured_findings():
 
     assert finding["title"] == "SSH Service Detected"
     assert finding["severity"] == "INFO"
+    assert finding["confidence"] == "HIGH"
     assert finding["evidence"] == "22/tcp open ssh"
+    assert finding["why_it_matters"] == (
+        "Remote access expands the attack surface."
+    )
 
 
 def test_create_report_deduplicates_findings_and_merges_evidence():
@@ -253,6 +259,29 @@ def test_create_report_deduplicates_findings_and_merges_evidence():
     assert report["findings"][0]["evidence"] == (
         "22/tcp open ssh\n2222/tcp open ssh"
     )
+
+
+def test_create_report_keeps_findings_with_different_confidence_apart():
+    result = MockScanResult(success=True, findings=[])
+
+    report = create_report(
+        scan_type="Network Scan",
+        target="192.168.1.10",
+        result=result,
+        findings=[
+            make_finding(confidence=Confidence.HIGH),
+            make_finding(
+                confidence=Confidence.LOW,
+                evidence="2222/tcp open ssh",
+            ),
+        ],
+    )
+
+    assert len(report["findings"]) == 2
+    assert [finding["confidence"] for finding in report["findings"]] == [
+        "HIGH",
+        "LOW",
+    ]
 
 
 def test_create_report_defaults_to_empty_findings():

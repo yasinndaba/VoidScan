@@ -49,6 +49,7 @@ class ServiceRule:
     severity: Severity
     description: str
     recommendation: str
+    why_it_matters: str
 
 
 SSH_RULE = ServiceRule(
@@ -57,6 +58,8 @@ SSH_RULE = ServiceRule(
     "An SSH service was detected on the target.",
     "Review whether SSH exposure is required and restrict access "
     "with firewall rules or key-based authentication.",
+    "Exposed remote-access services are a common entry point for "
+    "credential attacks and lateral movement.",
 )
 
 HTTP_RULE = ServiceRule(
@@ -65,6 +68,8 @@ HTTP_RULE = ServiceRule(
     "An HTTP web service was detected on the target.",
     "Review the web service configuration and ensure sensitive "
     "traffic uses HTTPS.",
+    "Unencrypted web traffic can expose credentials, session tokens, "
+    "and data in transit.",
 )
 
 HTTPS_RULE = ServiceRule(
@@ -72,6 +77,8 @@ HTTPS_RULE = ServiceRule(
     Severity.INFO,
     "An HTTPS web service was detected on the target.",
     "Verify that TLS is correctly configured and kept up to date.",
+    "Weak or outdated TLS settings can undermine the protection HTTPS "
+    "is meant to provide.",
 )
 
 FTP_RULE = ServiceRule(
@@ -80,6 +87,8 @@ FTP_RULE = ServiceRule(
     "A plaintext FTP service was detected on the target.",
     "Prefer SFTP or FTPS, disable anonymous access, and restrict "
     "the service to trusted networks.",
+    "FTP sends credentials and files in plaintext, so anyone on the "
+    "network path can read them.",
 )
 
 TELNET_RULE = ServiceRule(
@@ -88,6 +97,7 @@ TELNET_RULE = ServiceRule(
     "A plaintext Telnet service was detected on the target.",
     "Disable Telnet and use SSH instead. Telnet sends credentials "
     "and session data unencrypted.",
+    "Telnet sends every keystroke, including credentials, without encryption.",
 )
 
 SMB_RULE = ServiceRule(
@@ -96,6 +106,8 @@ SMB_RULE = ServiceRule(
     "An SMB file-sharing service was detected on the target.",
     "Restrict SMB access to trusted networks and verify that the "
     "service is fully patched.",
+    "File-sharing services are a frequent target for credential theft "
+    "and lateral movement.",
 )
 
 RDP_RULE = ServiceRule(
@@ -104,6 +116,8 @@ RDP_RULE = ServiceRule(
     "A Remote Desktop service was detected on the target.",
     "Restrict Remote Desktop access with a firewall, require strong "
     "authentication, and keep the service patched.",
+    "Exposed remote desktops are routinely targeted with brute-force "
+    "and session-hijack attacks.",
 )
 
 VNC_RULE = ServiceRule(
@@ -112,6 +126,8 @@ VNC_RULE = ServiceRule(
     "A VNC remote desktop service was detected on the target.",
     "Require authentication for VNC, tunnel it over SSH, and restrict "
     "access to trusted hosts.",
+    "VNC often relies on weak or missing authentication and exposes "
+    "the full desktop.",
 )
 
 REDIS_RULE = ServiceRule(
@@ -120,6 +136,8 @@ REDIS_RULE = ServiceRule(
     "A Redis service was detected on the target.",
     "Bind Redis to a trusted interface, enable authentication, and "
     "never expose it directly to the internet.",
+    "Unauthenticated Redis instances can leak or overwrite data and "
+    "often allow remote code execution.",
 )
 
 DATABASE_RULE = ServiceRule(
@@ -128,6 +146,8 @@ DATABASE_RULE = ServiceRule(
     "A database service was detected on the target.",
     "Restrict database access to application hosts and require "
     "strong authentication.",
+    "Exposed database services can leak sensitive data and are common "
+    "brute-force targets.",
 )
 
 
@@ -174,6 +194,8 @@ GENERIC_RULE = ServiceRule(
     "An open port was detected on the target.",
     "Review whether this port needs to be reachable and restrict "
     "access where appropriate.",
+    "Every reachable port expands the attack surface, even when the "
+    "service behind it cannot be identified.",
 )
 
 

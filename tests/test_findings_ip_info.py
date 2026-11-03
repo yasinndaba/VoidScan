@@ -1,6 +1,6 @@
 """Tests for VoidScan IP information findings."""
 
-from voidscan.findings import Severity
+from voidscan.findings import Confidence, Severity
 from voidscan.findings_ip_info import analyze_ip_info_result
 from voidscan.scanners.ip_info import IPInfoResult
 
@@ -21,6 +21,8 @@ def test_analyze_ip_info_detects_private_address():
     assert len(findings) == 1
     assert findings[0].title == "Private IP Address Identified"
     assert findings[0].severity == Severity.INFO
+    assert findings[0].confidence is Confidence.HIGH
+    assert findings[0].why_it_matters
     assert findings[0].evidence == "192.168.1.10"
 
 
@@ -44,6 +46,15 @@ def test_analyze_ip_info_detects_reverse_dns():
         "Private IP Address Identified",
         "Reverse DNS Record Identified",
     }
+
+    reverse_dns = next(
+        finding
+        for finding in findings
+        if finding.title == "Reverse DNS Record Identified"
+    )
+
+    assert reverse_dns.confidence is Confidence.MEDIUM
+    assert reverse_dns.why_it_matters
 
 
 def test_analyze_ip_info_detects_loopback():

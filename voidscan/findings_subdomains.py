@@ -1,6 +1,6 @@
 """Subdomain security findings analyzer for VoidScan."""
 
-from voidscan.findings import Finding
+from voidscan.findings import Confidence, Finding
 from voidscan.scanners.subdomains import SubdomainResult
 from voidscan.severity import SUBDOMAIN_SEVERITY
 
@@ -35,6 +35,13 @@ def analyze_subdomain_result(result: SubdomainResult) -> list[Finding]:
             recommendation=(
                 "Review discovered subdomains and verify that each exposed "
                 "service is required and appropriately secured."
+            ),
+            confidence=(
+                Confidence.LOW if result.timed_out else Confidence.MEDIUM
+            ),
+            why_it_matters=(
+                "Unmanaged or forgotten subdomains often expose services "
+                "outside the main application's controls."
             ),
         )
     )

@@ -136,6 +136,7 @@ def test_every_rule_is_complete() -> None:
         assert rule.title
         assert rule.description
         assert rule.recommendation
+        assert rule.why_it_matters
         assert isinstance(rule.severity, Severity)
 
 

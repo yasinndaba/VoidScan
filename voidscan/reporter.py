@@ -12,7 +12,11 @@ from rich.table import Table
 
 from voidscan import __version__
 from voidscan.audit import ScanAudit
-from voidscan.findings import Finding, merge_evidence
+from voidscan.findings import (
+    CONFIDENCE_COLORS,
+    Finding,
+    merge_evidence,
+)
 from voidscan.severity import (
     SEVERITY_COLORS,
     SEVERITY_ORDER,
@@ -31,9 +35,11 @@ def _serialize_finding(
         return {
             "title": finding.title,
             "severity": finding.severity.value,
+            "confidence": finding.confidence.value,
             "description": finding.description,
             "evidence": finding.evidence,
             "recommendation": finding.recommendation,
+            "why_it_matters": finding.why_it_matters,
         }
 
     if isinstance(finding, dict):
@@ -48,10 +54,10 @@ def _deduplicate_serialized(
     """Collapse identical serialized findings and merge their evidence."""
 
     merged: dict[
-        tuple[str, str, str, str],
+        tuple[str, str, str, str, str, str],
         dict[str, Any],
     ] = {}
-    ordered_keys: list[tuple[str, str, str, str]] = []
+    ordered_keys: list[tuple[str, str, str, str, str, str]] = []
 
     for finding in findings:
         key = (
@@ -59,6 +65,8 @@ def _deduplicate_serialized(
             str(finding.get("severity", "")).upper(),
             str(finding.get("description", "")),
             str(finding.get("recommendation", "")),
+            str(finding.get("confidence", "")).upper(),
+            str(finding.get("why_it_matters", "")),
         )
 
         existing = merged.get(key)
@@ -117,6 +125,7 @@ def _render_findings_table(
 
     table.add_column("Severity", width=10)
     table.add_column("Finding")
+    table.add_column("Confidence", width=10)
     table.add_column("Evidence")
 
     ordered = sorted(
@@ -131,9 +140,24 @@ def _render_findings_table(
         severity = str(finding.get("severity", "INFO")).upper()
         color = SEVERITY_COLORS.get(severity, "white")
 
+        confidence = str(finding.get("confidence", "")).upper()
+        confidence_color = CONFIDENCE_COLORS.get(confidence, "dim")
+        confidence_cell = (
+            f"[{confidence_color}]{confidence}[/{confidence_color}]"
+            if confidence
+            else "—"
+        )
+
+        title = str(finding.get("title", "Unnamed finding"))
+        why_it_matters = str(finding.get("why_it_matters", "")).strip()
+
+        if why_it_matters:
+            title = f"{title}\n[dim]{why_it_matters}[/dim]"
+
         table.add_row(
             f"[{color}]{severity}[/{color}]",
-            str(finding.get("title", "Unnamed finding")),
+            title,
+            confidence_cell,
             _evidence_preview(str(finding.get("evidence", ""))),
         )
 

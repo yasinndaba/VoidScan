@@ -1,6 +1,6 @@
 """Tests for VoidScan directory findings."""
 
-from voidscan.findings import Severity
+from voidscan.findings import Confidence, Severity
 from voidscan.findings_directories import analyze_directory_result
 from voidscan.scanners.directories import DirectoryResult
 
@@ -24,6 +24,8 @@ def test_analyze_directories_detects_web_resources():
     assert len(findings) == 1
     assert findings[0].title == "Web Resources Discovered"
     assert findings[0].severity == Severity.INFO
+    assert findings[0].confidence is Confidence.HIGH
+    assert findings[0].why_it_matters
     assert "admin" in findings[0].evidence
     assert "backup" in findings[0].evidence
 

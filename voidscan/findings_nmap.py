@@ -3,7 +3,7 @@
 import re
 from collections.abc import Iterator
 
-from voidscan.findings import Finding
+from voidscan.findings import Confidence, Finding
 from voidscan.scanners.nmap import NmapResult
 from voidscan.severity import rule_for_service
 
@@ -15,7 +15,7 @@ OPEN_PORT_PATTERN = re.compile(
 
 def _port_entries(
     result: NmapResult,
-) -> Iterator[tuple[int, str, str, str, str]]:
+) -> Iterator[tuple[int, str, str, str, str, Confidence]]:
     """Yield port details from structured output or parse text."""
 
     if result.ports:
@@ -33,6 +33,7 @@ def _port_entries(
                 entry.state,
                 entry.service,
                 evidence,
+                Confidence.HIGH,
             )
 
         return
@@ -49,6 +50,7 @@ def _port_entries(
             match.group(3),
             match.group(4),
             line.strip(),
+            Confidence.MEDIUM,
         )
 
 
@@ -60,7 +62,14 @@ def analyze_nmap_result(result: NmapResult) -> list[Finding]:
 
     findings: list[Finding] = []
 
-    for port, protocol, state, service, evidence in _port_entries(result):
+    for (
+        port,
+        protocol,
+        state,
+        service,
+        evidence,
+        confidence,
+    ) in _port_entries(result):
         state = state.lower()
 
         if not state.startswith("open"):
@@ -80,6 +89,8 @@ def analyze_nmap_result(result: NmapResult) -> list[Finding]:
                 ),
                 evidence=evidence,
                 recommendation=rule.recommendation,
+                confidence=confidence,
+                why_it_matters=rule.why_it_matters,
             )
         )
 

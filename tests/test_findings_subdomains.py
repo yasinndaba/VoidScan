@@ -1,6 +1,6 @@
 """Tests for VoidScan subdomain findings."""
 
-from voidscan.findings import Severity
+from voidscan.findings import Confidence, Severity
 from voidscan.findings_subdomains import analyze_subdomain_result
 from voidscan.scanners.subdomains import SubdomainResult
 
@@ -23,6 +23,8 @@ def test_analyze_subdomains_detects_discovered_subdomains():
     assert len(findings) == 1
     assert findings[0].title == "Subdomains Discovered"
     assert findings[0].severity == Severity.INFO
+    assert findings[0].confidence is Confidence.MEDIUM
+    assert findings[0].why_it_matters
     assert "api.example.com" in findings[0].evidence
     assert "dev.example.com" in findings[0].evidence
 
@@ -70,3 +72,4 @@ def test_analyze_subdomains_reports_partial_timeout_results():
     assert len(findings) == 1
     assert "api.example.com" in findings[0].evidence
     assert "may be incomplete" in findings[0].description
+    assert findings[0].confidence is Confidence.LOW
