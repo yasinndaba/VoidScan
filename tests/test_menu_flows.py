@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from rich.table import Table
 from voidscan import menu
 from voidscan.config import Config
 from voidscan.errors import ScanCancelled, ScanTimeout
@@ -389,6 +390,106 @@ def test_live_host_discovery_reports_save_errors(tmp_path):
         patch("voidscan.menu.save_html_report", side_effect=OSError("disk")),
     ):
         menu.live_host_discovery()
+
+
+# Paged results
+
+
+def test_paged_results_shows_a_short_list_without_prompting():
+    with (
+        patch("voidscan.menu.console.input") as input_mock,
+        patch("voidscan.menu.console.print"),
+    ):
+        menu.show_paged_results("Hosts", "Host", ["a", "b"])
+
+    input_mock.assert_not_called()
+
+
+def test_paged_results_with_no_values_does_nothing():
+    with (
+        patch("voidscan.menu.console.input") as input_mock,
+        patch("voidscan.menu.console.print") as print_mock,
+    ):
+        menu.show_paged_results("Hosts", "Host", [])
+
+    input_mock.assert_not_called()
+    print_mock.assert_not_called()
+
+
+def test_paged_results_moves_between_pages():
+    values = [f"host-{index}" for index in range(120)]
+
+    with (
+        patch(
+            "voidscan.menu.console.input",
+            side_effect=["n", "n", "p", ""],
+        ) as input_mock,
+        patch("voidscan.menu.console.print") as print_mock,
+    ):
+        menu.show_paged_results("Hosts", "Host", values)
+
+    assert input_mock.call_count == 4
+    assert print_mock.call_count > 1
+
+
+def test_paged_results_filters_by_substring():
+    values = [f"host-{index}" for index in range(120)]
+
+    with (
+        patch(
+            "voidscan.menu.console.input",
+            side_effect=["f", "host-11", ""],
+        ),
+        patch("voidscan.menu.console.print") as print_mock,
+    ):
+        menu.show_paged_results("Hosts", "Host", values)
+
+    tables = [
+        call.args[0]
+        for call in print_mock.call_args_list
+        if isinstance(call.args[0], Table)
+    ]
+
+    assert [table.title for table in tables] == [
+        "Hosts",
+        "Hosts",
+    ]
+    assert len(tables[1].rows) == 11
+
+
+def test_paged_results_can_clear_a_filter():
+    values = [f"host-{index}" for index in range(120)]
+
+    with (
+        patch(
+            "voidscan.menu.console.input",
+            side_effect=["f", "nothing", "c", ""],
+        ),
+        patch("voidscan.menu.console.print") as print_mock,
+    ):
+        menu.show_paged_results("Hosts", "Host", values)
+
+    tables = [
+        call.args[0]
+        for call in print_mock.call_args_list
+        if isinstance(call.args[0], Table)
+    ]
+
+    assert tables[-1].title == "Hosts"
+    assert len(tables[-1].rows) == 50
+
+
+def test_paged_results_rejects_unknown_commands():
+    values = [f"host-{index}" for index in range(120)]
+
+    with (
+        patch(
+            "voidscan.menu.console.input",
+            side_effect=["x", ""],
+        ),
+        patch("voidscan.menu.console.print"),
+    ):
+        menu.show_paged_results("Hosts", "Host", values)
 
 
 # Subdomain enumeration
@@ -837,6 +938,9 @@ def test_settings_displays_configuration_and_tool_status(tmp_path):
 def write_report_file(
     tmp_path: Path,
     name: str = "network_scan_20261103_120000_000000.json",
+    *,
+    target: str = "127.0.0.1",
+    timestamp: str = "2026-11-03T12:00:00+00:00",
 ) -> Path:
     report_dir = tmp_path / "reports"
     report_dir.mkdir(exist_ok=True)
@@ -846,8 +950,8 @@ def write_report_file(
             {
                 "tool": "VoidScan",
                 "scan_type": "Network Scan",
-                "target": "127.0.0.1",
-                "timestamp": "2026-11-03T12:00:00+00:00",
+                "target": target,
+                "timestamp": timestamp,
                 "findings": [],
             }
         ),
@@ -931,6 +1035,76 @@ def test_report_browser_handles_a_missing_report_file(tmp_path):
 
     with menu_harness(tmp_path):
         menu._open_report(report)
+
+
+def test_report_browser_filters_reports_by_text(tmp_path):
+    write_report_file(
+        tmp_path,
+        "network_scan_20261103_120000_000000.json",
+        target="example.com",
+    )
+    write_report_file(
+        tmp_path,
+        "network_scan_20261103_120000_000001.json",
+        target="other.net",
+    )
+
+    with (
+        menu_harness(tmp_path, inputs=["f", "example", "1"]),
+        patch("voidscan.menu._open_report") as open_report,
+    ):
+        menu.browse_reports()
+
+    open_report.assert_called_once()
+    report = open_report.call_args.args[0]
+    assert report.target == "example.com"
+
+
+def test_report_browser_can_clear_a_filter(tmp_path):
+    write_report_file(tmp_path, target="example.com")
+    write_report_file(
+        tmp_path,
+        "network_scan_20261103_120000_000001.json",
+        target="other.net",
+    )
+
+    with (
+        menu_harness(tmp_path, inputs=["f", "example", "c", ""]),
+        patch("voidscan.menu._open_report") as open_report,
+    ):
+        menu.browse_reports()
+
+    open_report.assert_not_called()
+
+
+def test_report_browser_pages_through_reports(tmp_path):
+    for index in range(60):
+        write_report_file(
+            tmp_path,
+            f"network_scan_20260101_0000{index:02d}_000000.json",
+            target=f"host-{index:02d}",
+            timestamp=f"2026-01-01T00:{index:02d}:00+00:00",
+        )
+
+    with (
+        menu_harness(
+            tmp_path,
+            inputs=["n", "p", "n", "1"],
+        ),
+        patch("voidscan.menu._open_report") as open_report,
+    ):
+        menu.browse_reports()
+
+    open_report.assert_called_once()
+    report = open_report.call_args.args[0]
+    assert report.target == "host-09"
+
+
+def test_report_browser_rejects_an_unknown_command(tmp_path):
+    write_report_file(tmp_path)
+
+    with menu_harness(tmp_path, inputs=["x", ""]):
+        menu.browse_reports()
 
 
 # Main menu

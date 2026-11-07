@@ -1,7 +1,7 @@
 # VoidScan Roadmap
 
-Current baseline: **v0.3.0**, **412 tests passing** plus 4 optional live
-tests, **94.3% coverage**, Linux supported. Ruff, formatting, and mypy pass
+Current baseline: **v0.3.0**, **430 tests passing** plus 4 optional live
+tests, **94.7% coverage**, Linux supported. Ruff, formatting, and mypy pass
 on the current tree.
 
 Milestones 0–7 are complete. The v0.2 reliability milestone and the v0.3
@@ -31,7 +31,6 @@ Working today:
 Known gaps this roadmap addresses:
 
 - Settings cannot be edited
-- No paging or filtering for large terminal result tables
 - Findings are still mostly presence-based; service-version awareness is pending
 - No scope file yet
 - No architecture docs, screenshots, or demo lab
@@ -189,6 +188,7 @@ Progress:
 - [x] D6 — HTML report polish: severity summary, audit metadata, section nav, and per-finding anchors
 - [x] C5 — Confidence and context: every finding carries a confidence level and a "why this matters" note rendered in the terminal and HTML reports
 - [x] D1 — Report browser: saved reports are listed by date, type, target, and finding count, with JSON opened in the pager and HTML in the browser
+- [x] D3 — Paging and filtering: terminal lists and the report browser page with `n`/`p` and filter by substring with `f`/`c`, while saved reports stay complete
 
 ### v1.0 — Release
 

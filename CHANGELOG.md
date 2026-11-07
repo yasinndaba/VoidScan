@@ -27,6 +27,9 @@ All notable changes to VoidScan will be documented here.
 * Report browser (`10` in the main menu) that lists every saved JSON and HTML
   report with its date, scan type, target, finding count, and format; JSON
   reports open in the terminal pager and HTML reports open in the browser
+* Paging and substring filtering for large terminal tables. Lists longer than
+  50 rows page with `n`/`p` and filter with `f`/`c`, and the report browser
+  supports the same commands
 
 ### Changed
 
@@ -40,6 +43,10 @@ All notable changes to VoidScan will be documented here.
 * Structured Nmap output yields `HIGH` confidence findings, the text
   fallback yields `MEDIUM`, subdomain results from a timed-out run are
   `LOW`, and reverse-DNS findings are `MEDIUM`
+* Large terminal tables now show one 50-row page at a time instead of
+  silently truncating the list; saved reports still contain every result
+* Report browser selection numbers are page-local, and filtering searches
+  scan type, target, format, date, and filename
 
 ## [0.3.0] - 2026-10-30
 

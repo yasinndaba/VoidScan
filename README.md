@@ -106,6 +106,7 @@ Milestone 7 — CI/CD: Complete
 - Findings included in JSON and HTML reports
 - Report browser that lists saved reports by date, type, target, finding count,
   and format, then opens JSON in the pager or HTML in your browser
+- Paging and substring filtering for large result tables and the report browser
 - Consistent empty, timeout, missing-tool, and invalid-input panels
 - Report storage under `~/.voidscan/reports/`
 
@@ -162,8 +163,9 @@ The menu provides:
 7. Target Manager — add, list, remove, and clear targets
 8. View Logs — recent entries from `~/.voidscan/logs/voidscan.log`
 9. Settings — paths, per-tool timeouts, discovery limits, and tool status
-10. Report Browser — list saved reports by date, type, target, and finding
-    count, then open JSON in the pager or HTML in your browser
+10. Report Browser — list, page, and filter saved reports by date, type,
+    target, and finding count, then open JSON in the pager or HTML in your
+    browser
 
 ### Target types
 
@@ -274,6 +276,13 @@ saved JSON and HTML report with its date, scan type, target, finding count, and
 format; selecting a JSON report opens it in the terminal pager, and selecting
 an HTML report opens it in your default browser.
 
+Terminal result tables and the report browser show 50 rows per page. When a
+list is longer than one page, or a filter is active, use `n` for the next page,
+`p` for the previous page, `f` to filter by a case-insensitive substring, and
+`c` to clear the filter. Press Enter to return. Filtering the report browser
+searches the scan type, target, format, date, and filename. Saved reports
+always contain the complete result set.
+
 ## Limits and Safety
 
 - Host discovery supports IPv4 and IPv6 CIDR ranges and is capped at 4096
@@ -288,8 +297,9 @@ an HTML report opens it in your default browser.
 - When Amass times out, its partial results are kept and VoidScan offers to
   retry with Subfinder. The combined results are reported as
   `amass+subfinder`.
-- Large terminal result tables are truncated to the first 50 rows. The full
-  results are always included in saved reports.
+- Large terminal result tables are paged at 50 rows with `n`/`p` and support
+  substring filtering with `f`/`c`. The full results are always included in
+  saved reports.
 - Use VoidScan only against systems you are authorized to test.
 
 ## Testing
@@ -385,6 +395,7 @@ VoidScan/
 │   ├── reporter.py
 │   ├── html_reporter.py
 │   ├── report_index.py
+│   ├── results_view.py
 │   └── dependencies.py
 │
 ├── tests/

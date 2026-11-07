@@ -2,8 +2,10 @@
 
 import logging
 import webbrowser
+from collections.abc import Sequence
 
 from rich.console import Console
+from rich.markup import escape
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
@@ -28,6 +30,12 @@ from voidscan.reporter import (
     display_findings,
     display_report_summary,
     save_json_report,
+)
+from voidscan.results_view import (
+    clamp_page,
+    filter_items,
+    page_count,
+    page_items,
 )
 from voidscan.scanners.directories import (
     DirectoryResult,
@@ -56,24 +64,84 @@ console = Console()
 
 logger = logging.getLogger("voidscan.menu")
 
-# Result tables are capped so large scans stay readable. Full results are
-# always available in the saved JSON and HTML reports.
+# Result tables show one page at a time so large scans stay readable. Saved
+# reports always contain the complete list.
 MAX_RESULT_ROWS = 50
 
 
-def print_result_cap(
-    shown: int,
-    total: int,
+def show_paged_results(
+    title: str,
+    label: str,
+    values: Sequence[str],
+    context: str = "",
 ) -> None:
-    """Explain that only part of a large result set is displayed."""
+    """Display a result list, adding paging and filtering when long."""
 
-    if total <= shown:
+    if not values:
         return
 
-    console.print(
-        f"\n[dim]Showing the first {shown} of {total} results. "
-        "The full list is included in the saved report.[/dim]"
-    )
+    query = ""
+    filtered = list(values)
+    page = 1
+
+    while True:
+        pages = page_count(len(filtered), MAX_RESULT_ROWS)
+        page = clamp_page(page, len(filtered), MAX_RESULT_ROWS)
+        shown = page_items(filtered, page, MAX_RESULT_ROWS)
+
+        if context:
+            console.print(f"[bold cyan]{escape(context)}[/bold cyan]")
+
+        table = Table(title=title, border_style="green")
+        table.add_column("#", style="bold cyan", width=6)
+        table.add_column(label, style="white")
+
+        offset = (page - 1) * MAX_RESULT_ROWS
+
+        for index, value in enumerate(shown, start=offset + 1):
+            table.add_row(str(index), value)
+
+        console.print(table)
+
+        if len(filtered) <= MAX_RESULT_ROWS and not query:
+            return
+
+        summary = f"{len(filtered)} result(s)"
+
+        if pages > 1:
+            summary = f"page {page}/{pages} · {summary}"
+
+        if query:
+            summary += f" matching [bold]{escape(query)}[/bold]"
+
+        console.print(
+            f"\n[dim]{summary}. Commands: n(ext), p(revious), "
+            "f(ilter), c(lear), Enter to continue.[/dim]"
+        )
+
+        command = console.input("[bold cyan]Results> [/bold cyan]").strip()
+
+        if not command:
+            return
+
+        lowered = command.lower()
+
+        if lowered in {"n", "next"}:
+            page += 1
+        elif lowered in {"p", "prev", "previous"}:
+            page -= 1
+        elif lowered in {"f", "filter"}:
+            query = console.input("Filter substring: ").strip()
+            filtered = filter_items(values, query, lambda value: value)
+            page = 1
+        elif lowered in {"c", "clear"}:
+            query = ""
+            filtered = list(values)
+            page = 1
+        else:
+            console.print(
+                "[yellow]Unknown command. Use n, p, f, c, or Enter.[/yellow]"
+            )
 
 
 def show_scan_cancelled(
@@ -676,21 +744,12 @@ def live_host_discovery() -> None:
     console.print()
 
     if result.hosts:
-        table = Table(
-            title=f"Live Hosts — {result.network}",
-            border_style="green",
+        show_paged_results(
+            "Live Hosts",
+            "Host",
+            result.hosts,
+            context=result.network,
         )
-
-        table.add_column("#", style="bold cyan", width=6)
-        table.add_column("Host", style="white")
-
-        shown_hosts = result.hosts[:MAX_RESULT_ROWS]
-
-        for index, host in enumerate(shown_hosts, start=1):
-            table.add_row(str(index), host)
-
-        console.print(table)
-        print_result_cap(len(shown_hosts), len(result.hosts))
     else:
         console.print(
             Panel(
@@ -991,26 +1050,11 @@ def subdomain_enumeration() -> None:
     )
 
     if result.subdomains:
-        result_table = Table(
-            title=f"Discovered Subdomains — {domain}",
-            border_style="green",
-        )
-
-        result_table.add_column("#", style="bold cyan", width=6)
-        result_table.add_column("Subdomain", style="white")
-
-        shown_subdomains = result.subdomains[:MAX_RESULT_ROWS]
-
-        for index, subdomain in enumerate(
-            shown_subdomains,
-            start=1,
-        ):
-            result_table.add_row(str(index), subdomain)
-
-        console.print(result_table)
-        print_result_cap(
-            len(shown_subdomains),
-            len(result.subdomains),
+        show_paged_results(
+            "Discovered Subdomains",
+            "Subdomain",
+            result.subdomains,
+            context=domain,
         )
 
         console.print(
@@ -1322,26 +1366,11 @@ def directory_enumeration() -> None:
     )
 
     if result.success and result.results:
-        result_table = Table(
-            title=f"Discovered Content — {target}",
-            border_style="green",
-        )
-
-        result_table.add_column("#", style="bold cyan", width=6)
-        result_table.add_column("Result", style="white")
-
-        shown_results = result.results[:MAX_RESULT_ROWS]
-
-        for index, item in enumerate(
-            shown_results,
-            start=1,
-        ):
-            result_table.add_row(str(index), item)
-
-        console.print(result_table)
-        print_result_cap(
-            len(shown_results),
-            len(result.results),
+        show_paged_results(
+            "Discovered Content",
+            "Result",
+            result.results,
+            context=target,
         )
 
         console.print(
@@ -1651,6 +1680,24 @@ def system_monitor() -> None:
     console.input("\nPress Enter to return to the menu...")
 
 
+def _report_search_text(report: ReportSummary) -> str:
+    """Build the searchable text used to filter the report browser."""
+
+    moment = (
+        report.timestamp.strftime("%Y-%m-%d %H:%M") if report.timestamp else ""
+    )
+
+    return " ".join(
+        (
+            report.scan_type,
+            report.target,
+            report.format,
+            moment,
+            report.path.name,
+        )
+    )
+
+
 def browse_reports() -> None:
     """List saved reports and open one in the pager or web browser."""
 
@@ -1674,63 +1721,102 @@ def browse_reports() -> None:
         console.input("\nPress Enter to return to the menu...")
         return
 
-    shown = reports[:MAX_RESULT_ROWS]
+    query = ""
+    filtered = list(reports)
+    page = 1
 
-    table = Table(title="Saved Reports", border_style="cyan")
-    table.add_column("#", style="bold cyan", width=4)
-    table.add_column("Date (UTC)", width=17)
-    table.add_column("Type")
-    table.add_column("Target")
-    table.add_column("Findings", justify="right", width=8)
-    table.add_column("Format", width=7)
+    while True:
+        pages = page_count(len(filtered), MAX_RESULT_ROWS)
+        page = clamp_page(page, len(filtered), MAX_RESULT_ROWS)
+        shown = page_items(filtered, page, MAX_RESULT_ROWS)
 
-    for index, report in enumerate(shown, start=1):
-        date = (
-            report.timestamp.strftime("%Y-%m-%d %H:%M")
-            if report.timestamp
-            else "Unknown"
-        )
-        findings = (
-            str(report.finding_count)
-            if report.finding_count is not None
-            else "—"
-        )
+        table = Table(title="Saved Reports", border_style="cyan")
+        table.add_column("#", style="bold cyan", width=4)
+        table.add_column("Date (UTC)", width=17)
+        table.add_column("Type")
+        table.add_column("Target")
+        table.add_column("Findings", justify="right", width=8)
+        table.add_column("Format", width=7)
 
-        table.add_row(
-            str(index),
-            date,
-            report.scan_type,
-            report.target,
-            findings,
-            report.format.upper(),
-        )
+        for index, report in enumerate(shown, start=1):
+            date = (
+                report.timestamp.strftime("%Y-%m-%d %H:%M")
+                if report.timestamp
+                else "Unknown"
+            )
+            findings = (
+                str(report.finding_count)
+                if report.finding_count is not None
+                else "—"
+            )
 
-    console.print(table)
+            table.add_row(
+                str(index),
+                date,
+                report.scan_type,
+                report.target,
+                findings,
+                report.format.upper(),
+            )
 
-    if len(reports) > len(shown):
-        console.print(
-            f"\n[dim]Showing the newest {len(shown)} of "
-            f"{len(reports)} reports.[/dim]"
-        )
+        console.print(table)
 
-    choice = console.input(
-        "\n[bold cyan]Report number (Enter to return):[/bold cyan] "
-    ).strip()
+        status = f"{len(filtered)} report(s)"
 
-    if not choice:
+        if pages > 1:
+            status = f"page {page}/{pages} · {status}"
+
+        if query:
+            status = f"filter: {escape(query)} · {status}"
+
+        if query or pages > 1:
+            console.print(f"[dim]{status}.[/dim]")
+
+        prompt = "Report number"
+
+        if len(filtered) > MAX_RESULT_ROWS or query:
+            prompt += ", n/p, f, c"
+
+        choice = console.input(
+            f"\n[bold cyan]{prompt} (Enter to return):[/bold cyan] "
+        ).strip()
+
+        if not choice:
+            return
+
+        lowered = choice.lower()
+
+        if lowered in {"n", "next"}:
+            page += 1
+            continue
+
+        if lowered in {"p", "prev", "previous"}:
+            page -= 1
+            continue
+
+        if lowered in {"f", "filter"}:
+            query = console.input("Filter reports by text: ").strip()
+            filtered = filter_items(reports, query, _report_search_text)
+            page = 1
+            continue
+
+        if lowered in {"c", "clear"}:
+            query = ""
+            filtered = list(reports)
+            page = 1
+            continue
+
+        try:
+            index = int(choice)
+        except ValueError:
+            index = 0
+
+        if not 1 <= index <= len(shown):
+            console.print("\n[bold red]Invalid report number.[/bold red]")
+            continue
+
+        _open_report(shown[index - 1])
         return
-
-    try:
-        index = int(choice)
-    except ValueError:
-        index = 0
-
-    if not 1 <= index <= len(shown):
-        console.print("\n[bold red]Invalid report number.[/bold red]")
-        console.input("\nPress Enter to return to the menu...")
-        return
-
-    _open_report(shown[index - 1])
 
 
 def _open_report(report: ReportSummary) -> None:
